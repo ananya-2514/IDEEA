@@ -100,6 +100,7 @@ if (nrow(obj_test) != length(sns)) {
 ...
 
 ## Electricity demand assumptions
+OL: replace colors
 ```{r}
 # demand is the same across scenarios, load one (REF)
 pDemand <- getData(sns$REF, "pDemand", merge = T, process = T
@@ -119,7 +120,7 @@ pDemand |> group_by(scenario, process, comm, year) |>
   summarise(GWh = sum(value), .groups = "drop") |>
   ggplot() +
   geom_bar(aes(as.factor(year), GWh/1e3, fill = process), stat = "identity") +
-  scale_fill_viridis_d(name = "", direction = -1) +
+  scale_fill_viridis_d(name = "", direction = -1, option = "H") +
   labs(x = "", y = "TWh") +
   theme_bw()
 
