@@ -3,4 +3,5 @@
 .RData
 .Ruserdata
 R/setup.R
+tmp/
 

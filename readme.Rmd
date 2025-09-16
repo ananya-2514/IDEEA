@@ -1,0 +1,91 @@
+---
+title: "setup"
+author: '@WRI IDEEA team'
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project setup
+
+```{r}
+source("R/ideea_installer.R")
+ideea_install_check()
+check_julia()
+
+```
+
+
+## Copying saved scenarios from another computer
+If a scenario has been solved and saved on another computer, the paths in the scenario object need to be updated.
+It can be done with the function `update_scenario_paths()`. 
+Currently we have two scenarios saved on the WRI sharepoint: `REF` and `CAP`. 
+The following code assumes that the scenarios have been copied to `ideea_scenarios()` on the local computer.
+The path adjustment has to be done for each scenario object separately and the updated object has to be saved again as `scen.RData` in the respective scenario folder.
+```{r, eval=FALSE}
+library(IDEEA)
+ideea_scenarios()
+source("R/update_scenario_paths.R") # script with the update_scenario_paths() function
+
+# Load the scenario objects
+# REF scenario
+load_scenario(
+  file.path(ideea_scenarios(), "REF_IDEEA_ELC_reg5_d365_h24_Y2020_2070_by_20"),
+  overwrite = TRUE # overwrite in memory (RAM) if already loaded
+ )
+# CAP scenario
+load_scenario(
+  file.path(ideea_scenarios(), "CAP_IDEEA_ELC_reg5_d365_h24_Y2020_2070_by_20"),
+  overwrite = TRUE
+)
+
+# Update paths in the scenario object
+scen <- update_scenario_paths(
+  .scen$REF,
+  scenarios_old_dir = "scenarios/WRI",
+  scenarios_new_dir = ideea_scenarios() # !!! adjust to your local path
+)
+scen@path # check if the path has been updated
+# check if the data is accessible
+getData(scen, "vObjective")
+if (length(getData(scen, "vObjective")) > 0) {
+  message("Data access check successful!")
+  # Save the updated scenario object again as scen.RData in the respective scenario folder
+  save(scen, file = file.path(scen@path, "scen.RData"))
+} else {
+  stop("Data access check failed!")
+}
+
+# Do the same for the CAP scenario
+scen <- update_scenario_paths(
+  .scen$CAP,
+  scenarios_old_dir = "scenarios/WRI",
+  scenarios_new_dir = ideea_scenarios()
+)
+# check if the data is accessible
+getData(scen, "vObjective")
+if (length(getData(scen, "vObjective")) > 0) {
+  message("Data access check successful!")
+  # Save the updated scenario object again as scen.RData in the respective scenario folder
+  save(scen, file = file.path(scen@path, "scen.RData"))
+} else {
+  stop("Data access check failed!")
+}
+
+## Re-load the updated scenario to check if everything works
+load_scenario(
+  file.path(ideea_scenarios(), "REF_IDEEA_ELC_reg5_d365_h24_Y2020_2070_by_20"),
+  overwrite = TRUE
+)
+load_scenario(
+  file.path(ideea_scenarios(), "CAP_IDEEA_ELC_reg5_d365_h24_Y2020_2070_by_20"),
+  overwrite = TRUE
+)
+sns <- list(.scen$REF, .scen$CAP)
+getData(sns, "vObjective")
+
+```
+

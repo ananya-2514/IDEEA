@@ -31,3 +31,18 @@ set_default_solver(solver_options$julia_cplex_barrier)
 # Output control
 set_progress_bar(type = "progress") # output progress bar in the console
 # show_progress_bar(show = FALSE) # to switch off
+
+# load functions
+source("R/ideea_snapshot2.r") # updated "snapshot" function
+
+# === temporary patch to fix `.scen` error === #
+if (!exists(".scen")) {
+  .initiate_env <- function(e) {
+    if (!exists(e, envir = .GlobalEnv)) {
+      assign(e, new.env(parent = .GlobalEnv), envir = .GlobalEnv)
+    }
+  }
+  .initiate_env(".scen")
+  .initiate_env(".tmp")
+}
+# === end of .scen-patch === #
