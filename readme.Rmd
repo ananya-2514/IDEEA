@@ -6,10 +6,15 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
 ```
 
+Note: 
+This document has a list of tools/scripts for the project setup and data (pre-)processing normally to run once during the creation and setting up the project's environment/workspace. 
+
+
 ## Project setup
+Installs IDEEA packages, checks if Julia is installed.
 
 ```{r}
 source("R/ideea_installer.R")
@@ -18,6 +23,15 @@ check_julia()
 
 ```
 
+## Reset utility
+A utility for a soft or hard reset of R environment. Run it (optionally) in every session start to ensure no unexpected data or packages are loaded and potentially conflict with key packages. 
+```{r}
+# usage:
+source("R/reset.R")
+reset_session() # with prompting a dialogue
+# or
+reset_session(prompt = FALSE)
+```
 
 ## Copying saved scenarios from another computer
 If a scenario has been solved and saved on another computer, the paths in the scenario object need to be updated.
@@ -25,7 +39,7 @@ It can be done with the function `update_scenario_paths()`.
 Currently we have two scenarios saved on the WRI sharepoint: `REF` and `CAP`. 
 The following code assumes that the scenarios have been copied to `ideea_scenarios()` on the local computer.
 The path adjustment has to be done for each scenario object separately and the updated object has to be saved again as `scen.RData` in the respective scenario folder.
-```{r, eval=FALSE}
+```{r}
 library(IDEEA)
 ideea_scenarios()
 source("R/update_scenario_paths.R") # script with the update_scenario_paths() function
