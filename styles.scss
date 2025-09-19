@@ -1,0 +1,62 @@
+/* Global color variables for reveal.js */
+:root {
+  --r-background-color: #ffffff;
+  --r-main-color: #1c1e21;
+  --r-heading-color: #111;
+  --r-link-color: #0a66c2;
+  --r-link-color-hover: #084e93;
+  --r-code-background: #f6f8fa;
+}
+
+/* Base slide spacing and content width */
+.reveal .slides section {
+  padding: 1.4rem 2rem;
+}
+.reveal .slides { max-width: 1200px; }
+
+/* Title sizes */
+.reveal h1 { font-size: 2.2rem; }
+.reveal h2 { font-size: 1.8rem; }
+
+/* Inverse/dark slide variant */
+.inverse {
+  background: #0f172a;
+  color: #e5e7eb;
+}
+.inverse a { color: #93c5fd; }
+
+/* Title slide tweaks */
+.title-slide .title { font-size: 2.6rem; }
+.title-slide .subtitle { font-weight: 400; color: #444; }
+
+/* Code blocks */
+.reveal pre code {
+  font-size: 0.9em !important;
+  background: var(--r-code-background);
+  border-radius: 6px;
+}
+
+/* Tables */
+.reveal table {
+  font-size: 0.95em;
+}
+.reveal table th {
+  background: #f2f4f7;
+}
+
+/* Fixed logo override (optional) */
+.reveal .slide-logo {
+  width: 120px;  /* default is smaller */
+  top: 0.6rem;
+  right: 0.6rem;
+}
+
+/* Utility class to make “big number” slides */
+.big-number h2 {
+  font-size: 3rem;
+  margin-bottom: 0.25rem;
+}
+.big-number p {
+  font-size: 1.2rem;
+  color: #666;
+}

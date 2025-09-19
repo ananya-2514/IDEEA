@@ -1,0 +1,499 @@
+---
+title: "Electric power sector transition scenarios"
+author: '@ideea'
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(IDEEA)
+source("R/setup.R")
+```
+
+# Configuration
+```{r, eval = T}
+# number of regions
+nreg <- 5 
+# nreg <- 32 
+```
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(data.table)
+library(sf)
+library(glue)
+library(IDEEA)
+
+regN <- glue("reg", nreg)
+regN_off <- paste0(regN, "_off")
+
+```
+
+## Regions
+
+```{r regions}
+ideea_sf <- get_ideea_map(nreg, offshore = T, reg_off = T)
+# quich plot
+plot(ideea_sf[regN], key.width = lcm(4))
+
+# alternative: ggplot2 version
+if (F) {
+  ggplot(ideea_sf) +
+    geom_sf(aes(fill = reg5_off)) +
+    theme_ideea_map()
+}
+```
+
+## Electricity model
+Building the electricity model from pre-build IDEEA modules, saved in the `IDEEA::ideea_modules` list.
+
+```{r}
+names(ideea_modules) # shows names of modules
+
+# Import all electricity model objects for selected number of regions
+names(ideea_modules$electricity) # all available models
+elc <- ideea_modules$electricity[[regN]]
+class(elc)
+names(elc)
+summary(elc)
+
+# # Update horizon up to 2075
+# horizon_2020_2070_by_10 <-
+#   newHorizon(
+#   name = "Y2020_2070_by_10",
+#   desc = "2020 to 2070 by 10 years",
+#   period = 2020:2075,
+#   intervals = c(1, 5, rep(10, 15)),
+#   mid_is_end = F
+# )
+# horizon_2020_2070_by_10
+# # (optional) Change milestone year 2023 to 2025
+# horizon_2020_2070_by_10@intervals # see 2nd row
+# horizon_2020_2070_by_10@intervals$mid[2] <- 2025
+# horizon_2020_2070_by_10@intervals # check
+
+# horizon_2020_2070_by_20 <-
+#   newHorizon(
+#   name = "Y2020_2070_by_20",
+#   desc = "2020 to 2070 by 20 years",
+#   period = 2020:2070,
+#   intervals = c(1, 5, 10, rep(20, 15)),
+#   mid_is_end = T
+# )
+# horizon_2020_2070_by_20@intervals
+# $mid[3] <- 2050
+
+horizon_2020_2070_by_15 <- newHorizon(
+  name = "Y2020_2070_by_15",
+  desc = "2020 to 2070 by 20 years",
+  period = 2020:2070,
+  intervals = c(1, 5, 10, rep(15, 5)),
+  mid_is_end = T
+)
+
+# Updating constraints (to 2070+)
+NO_NEW_HYDRO <- elc$NO_NEW_HYDRO
+NO_NEW_HYDRO@rhs <- data.frame(
+  year = 2020:2100, # extend the constraint
+  rhs = 1e-20 # close to zero (non-zero to avoid dropping)
+  ) 
+NO_NEW_HYDRO@for.each <- data.frame(year = 2020:2100)
+
+NO_NEW_NUCLEAR <- elc$NO_NEW_NUCLEAR
+NO_NEW_NUCLEAR@rhs <- data.frame(
+  year = 2020:2100, # all range of years
+  rhs = 1e-20
+  ) 
+NO_NEW_NUCLEAR@for.each <- data.frame(year = 2020:2100)
+
+# A model with the default configuration
+mod <- newModel(
+  name = glue("IDEEA_ELC_{regN}"),
+  desc = "IDEEA electricity example model",
+  region = unique(ideea_sf[[regN]]),
+  discount = 0.05,
+  calendar = ideea_modules$calendars$calendar_d365_h24,
+  horizon = ideea_modules$horizons$horizon_2020_2060_by_10,
+  data = newRepository(
+    name = glue("repo_electricity_{regN}"),
+    elc$repo_comm, # declaration of commodities used in the model
+    # supply & import
+    elc$repo_supply, # primary energy supply (markets)
+    elc$repo_geoccs, # CCS storage potential by region
+    # Generating technologies
+    elc$ECOA, # coal-fired generators
+    elc$EGAS, # gas-fired generators
+    elc$ENUC, # nuclear generators
+    elc$EHYD, # hydro generators
+    elc$ESOL_w_const, # solar generators with constraints on capacity
+    # elc$ESOL_w_land, # solar generators with constraints on land
+    elc$EWIN_w_const, # wind generators with constraints on capacity
+    # elc$EWIN_w_land, # wind generators with constraints on land
+    elc$EWIF_w_const, # wind generators with constraints on capacity
+    # elc$EWIF_w_land, # wind generators with constraints on used surface area
+    elc$EBIO, # biomass generators
+    elc$repo_ccstechs, # CCS technologies
+    # capacity (weather) factors
+    elc$WSOL, # solar capacity factor
+    elc$WWIN, # onshore wind capacity 
+    elc$WWIF, # offshore wind capacity 
+    elc$WHYD, # hydro capacity factor
+    # battery
+    elc$STG_BTR, # battery storage with yearly cycle
+    # STG_BTR_daily = STG_BTR_daily, # battery storage with daily cycle
+    # transmission
+    elc$repo_transmission_ac, # HVAC transmission network
+    elc$repo_transmission_dc, # HVDC transmission network with converters
+    # assumptions / policies
+    NO_NEW_HYDRO, # no new hydro capacity
+    NO_NEW_NUCLEAR, # no new nuclear capacity
+    # elc$NO_NEW_WIND, # no new wind capacity
+    # elc$NO_NEW_SOLAR, # no new solar capacity
+    # demand
+    elc$DEMELC_BY, # electricity demand in the base year
+    elc$DEMELC_2X # electricity demand growth
+  )
+)
+## Updating carbon policy to net zero by 2070
+CO2_CAP_2070 <- ideea_modules$electricity[[regN]]$CO2_CAP
+CO2_CAP_2070@rhs
+CO2_CAP_2070@rhs$year[CO2_CAP_2070@rhs$year == 2060] <- 2070
+CO2_CAP_2070@rhs
+
+```
+
+## Input check
+
+### Wind clusters
+<!-- ToDo: done -->
+<!-- - add cluster information (N and tol) to the repository to avoid ambiguity   -->
+<!-- - write a function for quick plotting of clustered data (wind/solar) - DONE -->
+
+```{r}
+names(elc$EWIN_w_const@data)
+message("Number of regions: ", nreg)
+```
+
+### Plot wind capacity factor by cluster
+<!-- ToDO: done -->
+<!-- - debug gif function -->
+<!-- - share IDEEA extra-repository -->
+```{r}
+# resource <- "win"; 
+win_tol <- 0.05
+calendar_1day_per_month <- 
+  ideea_modules$calendars$calendar_d365_h24_subset_1day_per_month
+  
+slices_1day_per_month <- calendar_1day_per_month@timetable$slice
+
+# ideea_sf <- get_ideea_map(nreg = nreg, offshore = T, islands = T)
+ideea_win_cl_sf <- get_ideea_cl_sf(resource = "win", tol = win_tol)
+plot(ideea_win_cl_sf["wcf_100m"])
+
+win_cf_data <- get_ideea_cf("win", tol = win_tol, year = 2019)
+win_cf_data
+cf_name <- "wcf_100m"
+
+# plot
+wind_snapshot <- ideea_snapshot_cf(win_cf_data, ideea_win_cl_sf, ideea_sf, 
+                  cf_name = cf_name, 
+                  slice = slices_1day_per_month[100])
+wind_snapshot
+ggsave("images/wind_snapshot.png", wind_snapshot, scale = 1.5,
+       width = 5, height = 5)
+
+# gif
+# ?ideea_gif_cf
+# ideea_gif_cf(x = win_cf_data, 
+#              ideea_cl_sf = ideea_win_cl_sf, 
+#              ideea_sf = ideea_sf, 
+#              cf_name = cf_name,
+#              slice = slices_1day_per_month[1:3],
+#              fps = 5, gif.width = 864, gif.height = 864,
+#              filename = glue("wind_capacity_factors_sample.gif"))
+```
+
+### Plot solar capacity factors by cluster
+```{r}
+sol_tol <- 0.01
+ideea_sol_cl_sf <- get_ideea_cl_sf(resource = "sol", tol = sol_tol)
+sol_cf_data <- get_ideea_cf("sol", tol = sol_tol, year = 2019)
+sol_cf_data
+# plot
+solar_snapshot <- ideea_snapshot_cf(sol_cf_data, ideea_sol_cl_sf, ideea_sf, 
+                  cf_name = "scf_tl")
+solar_snapshot
+ggsave("images/solar_snapshot.png", solar_snapshot, scale = 1.5,
+       width = 5, height = 5)
+library(patchwork)
+sol_win <- solar_snapshot + wind_snapshot
+ggsave("images/solar_wind_snapshot.png", sol_win, scale = 1.5,
+       width = 8.5, height = 5)
+
+# gif
+sol_cf_data_EAST <- filter(sol_cf_data, reg5 == "EAST")
+# ideea_gif_cf(
+#   x = sol_cf_data_EAST, 
+#   ideea_cl_sf = ideea_sol_cl_sf, 
+#   ideea_sf = ideea_sf, 
+#   cf_name = "scf_tl",
+#   slice = slices_1day_per_month[1:24],
+#   fps = 1, gif.width = 864, gif.height = 864,
+#   filename = glue("sol_capacity_factors_sample_EAST.gif"))
+
+```
+
+```{r}
+
+EXPELC <- newExport(
+  name = "EXPELC",
+  desc = "Pseudo-export to capture curtailed generation",
+  commodity = "ELC",
+  unit = "cr.₹/GWh",
+  exp = list(
+    price = 0.001 # "cr.INR/GWh" 
+    # convert("cr.₹/GWh", "cents/kWh", .001) # Check
+    # convert("cr.₹/GWh", "₹/kWh", .001) # Check
+  )
+)
+
+IMPELC <- newImport(
+  name = "IMPELC",
+  desc = "Unserved load penalty",
+  commodity = "ELC",
+  unit = "cr.₹/GWh",
+  imp = list(
+    price = 1e4 # high marginal price (penalty) for unserved load
+    # convert("USD/kWh", "MUSD/GWh", 1e4)
+  )
+)
+```
+
+
+
+## Scenarios
+Let's consider two scenarios for the electricity sector in 2050. The first scenario is a reference scenario (**REF**) without any policy intervention. The second scenario is a scenario with a carbon emissions constraint (**CAP**), targeting zero emissions by 2060 (linear reduction from 2030).  
+
+Here we solve both scenarios for 2050 with full 8760 hours resolution and a subset of 1 day per month, 288 hours (24 * 12) in total. The subset scenario is relatively fast to solve and can be used for drafting and testing purposes. Though it does not provide a full picture of intermittent renewable generation and can downplay the role of storage and transmission.
+
+
+### Reference scenario
+The **REF** scenario is a business-as-usual that includes all the existing technologies that are already in the model. 
+
+#### Solving for 288 hours
+The 288 hours scenario can be solved with open source solvers like HiGHS or Cbc in minutes. Here we use the HiGHS solver with the barrier method and Julia interface.
+```{r, eval=FALSE}
+# (optional) set default solver
+# set_default_solver(solver_options$julia_highs_parallel)
+# set_progress_bar(type = "progress") # output progress bar in the console
+
+# Sub-setting and interpolating of the model parameters
+scen_REF_sub <- interpolate_model(
+  mod,
+  name = "REF3_sub", # indicating 'subset'
+  calendar = ideea_modules$calendars$calendar_d365_h24_subset_1day_per_month,
+  horizon = ideea_modules$horizons$horizon_2070
+)
+summary(scen_REF_sub)
+
+# Writing the model script and data
+scen_REF_sub <- write_sc(
+  scen_REF_sub
+  # solver = solver_options$julia_cplex
+  # solver = solver_options$julia_highs_barrier
+  # solver = solver_options$julia_highs
+)
+scen_REF_sub@status # info
+scen_REF_sub@misc$tmp.dir # temporary directory
+
+# Solving the scenario
+scen_REF_sub <- solve_scenario(scen_REF_sub, wait = T)
+
+# Reading the results
+scen_REF_sub <- read(scen_REF_sub)
+summary(scen_REF_sub)
+
+# (optional) saving the scenario on disk
+scen_REF_sub <- save_scenario(scen_REF_sub)
+size(scen_REF_sub)
+
+```
+
+### Carbon emissions constraint scenario
+The **CAP** scenario is a scenario with a carbon emissions constraint. Here we use pre-defined CO2 emissions constraint on the national level, assuming emissions trading. The constraint is saved in `ideea_modules[[regN]]$CO2_CAP` object.
+
+#### Solving for 288 hours
+```{r, eval=FALSE}
+# Policy constraint 
+# CO2_CAP <- ideea_modules$electricity[[regN]]$CO2_CAP
+
+# Sub-setting and interpolating of the model parameters
+scen_CAP_sub <- interpolate(
+  mod,
+  name = "CAP3_sub", # indicating 'subset'
+  CO2_CAP_2070, # carbon emissions constraint
+  calendar = ideea_modules$calendars$calendar_d365_h24_subset_1day_per_month,
+  horizon = ideea_modules$horizons$horizon_2070
+)
+
+# Writing the model script and data
+scen_CAP_sub <- write_sc(
+  scen_CAP_sub
+  # solver = solver_options$gams_gdx_cplex_parallel
+  # solver = solver_options$julia_highs_barrier
+  # solver = julia_highs_crossover_on
+)
+
+# Solving the scenario
+scen_CAP_sub <- solve_scenario(scen_CAP_sub, wait = T)
+
+# Reading the results
+scen_CAP_sub <- read(scen_CAP_sub)
+summary(scen_CAP_sub)
+
+# (optional) saving the scenario on disk
+scen_CAP_sub <- save_scenario(scen_CAP_sub)
+
+```
+
+
+## Solving for 8760 hours
+The full-year scenario requires more computational resources and time. The generation of the problem also varies by the software. Here we use Python/Pyomo and CPLEX solver. The one-year scenario can be solved within an hour on a consumer-grade desktop or laptop. Barrier algorithm benefits from parallel processing and is normally faster on multi-core CPUs.  
+
+### REF
+```{r}
+# Interpolating the model parameters
+scen_REF <- interpolate(
+  mod,
+  name = "REF3",
+  horizon = horizon_2020_2070_by_15
+)
+
+# Writing the model script and data
+scen_REF <- write_sc(scen_REF)
+
+# Solving the scenario
+scen_REF <- solve_scenario(scen_REF, wait = F)
+# save(scen_REF, file = file.path(ideea_scenarios(), "scen_REF.RData"))
+# rm(scen_REF); gc()
+(load(file.path(ideea_scenarios(), "scen_REF.RData")))
+
+# Reading the results
+scen_REF <- read(scen_REF)
+summary(scen_REF)
+
+# (optional) saving the scenario on disk
+scen_REF <- save_scenario(scen_REF)
+
+```
+
+### CAP
+Similarly, the full-year scenario can be solved with the same solver and settings as **REF**.
+```{r}
+# Interpolating the model parameters
+scen_CAP <- interpolate_model(
+  mod, IMPELC, EXPELC,
+  name = "CAP3",
+  CO2_CAP_2070, # carbon emissions constraint
+  horizon = horizon_2020_2070_by_15
+)
+
+# Writing the model script and data
+scen_CAP <- write_script(scen_CAP)
+  # replace default solver
+  # solver_options$pyomo_cplex_barrier
+  # solver_options$julia_cplex_barrier
+  # solver = solver_options$gams_gdx_cplex_barrier
+  # solver = solver_options$gams_gdx_cplex_parallel
+  # solver = solver_options$julia_highs_barrier
+  # solver = solver_options$julia_highs_parallel
+# )
+
+# Solving the scenario
+# save(scen_CAP, file = file.path(ideea_scenarios(), "scen_CAP.RData"))
+scen_CAP <- solve_scenario(scen_CAP, wait = F)
+# installr::os.sleep()
+
+# Reading the results
+scen_CAP <- read(scen_CAP)
+summary(scen_CAP)
+isInMemory(scen_CAP) 
+
+# (optional) saving the scenario on disk
+scen_CAP <- save_scenario(scen_CAP)
+isInMemory(scen_CAP) # FALSE means the scenario is saved on disk
+summary(scen_CAP) # check RAM size 
+# installr::os.sleep()
+
+```
+
+
+## Results
+... an example of processing some results ...
+
+```{r}
+all_slices <- scen_CAP@settings@calendar@timetable$slice
+
+# (very) quick plots to use
+?ideea_snapshot
+ideea_snapshot(scen_REF, YEAR = 2050, SLICE = all_slices[1:24])
+ideea_snapshot(scen_CAP, YEAR = 2050, SLICE = all_slices[1:24])
+scen_cap_operation_data <- ideea_snapshot(scen_CAP, YEAR = 2050, 
+               SLICE = all_slices, 
+               return_data = T)
+fwrite(scen_cap_operation_data, file = "tmp/scen_cap_operation_data.csv")
+
+# ToDo: 
+# - add functionality to plot several scenarios
+# - fix colors / palette for fuel mix and techs
+
+```
+
+
+
+```{r}
+# Combine scenarios in a named or unnamed list
+# (in the case of unnamed list, scenario names are used)
+sns <- list(scen_REF_sub, scen_CAP_sub)
+# sns <- list(scen_REF_sub, scen_REF, scen_CAP_sub, scen_CAP)
+# sns <- scen_REF_sub
+
+```
+
+Use `getData()` function to retrieve variables and parameters from solved scenario objects. See `?getData` for more details.
+```{r}
+# Objective function value (total discounted cost)
+getData(sns, "vObjective", merge = T)
+```
+The "subset" time-slices scenarios normally show lower objective. 
+
+Compare technological capacity by scenario.
+```{r}
+vTechCap <- getData(sns, "vTechCap", merge = T, process = T, 
+                    tech_ = "^E",
+                    digits = 2, drop.zeros = T) |> 
+  drop_process_cluster() |> # removes cluster indicators from process names
+  drop_process_vintage() |> # removes vintage indicators from process names
+  group_by(scenario, process, year) |> # group and aggregate for figures/tables
+  summarise(GW = sum(value), .groups = "drop") |>
+  filter(!grepl("EDC", process)) |>
+  as.data.table()
+vTechCap |> pivot_wider(names_from = process, values_from = GW)
+
+ggplot(vTechCap) +
+  geom_bar(aes(x = scenario, y = GW, fill = process), stat = "identity") +
+  scale_fill_viridis_d(option = "H", direction = -1) +
+  theme_bw() 
+
+vEmsFuelTot <- getData(sns, "vEmsFuelTot", merge = T) 
+
+ggplot(vEmsFuelTot) +
+  geom_bar(aes(x = scenario, y = value), stat = "identity", fill = "brown") +
+  # scale_fill_viridis_d(option = "H", direction = -1) +
+  theme_bw() 
+
+```
+
