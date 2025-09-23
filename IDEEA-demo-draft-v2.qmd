@@ -1,26 +1,29 @@
 ---
 title: "IDEEA-demo (draft)"
+subtitle: "model to test alternative futures of India's energy system"   
+date: "September 23, 2025"
 author: "WRI"
 format:
   revealjs:
-    theme: [default, solarized]       # try: beige, blood, league, moon, night, serif, simple, sky, solarized
-    slide-number: true                # show slide numbers
-    progress: true                    # progress bar
-    controls: true                    # next/prev arrows
-    transition: fade                  # none | fade | slide | convex | concave | zoom
-    transition-speed: fast            # default | fast | slow
-    center: false                     # top-align content (nice for charts)
-    # width: 1600                       # slide canvas size
+    theme: [default, solarized]   # try: beige, blood, league, moon, night, serif, simple, sky, solarized
+    # theme: [default, sky]   # https://revealjs.com/themes/
+    slide-number: true            # show slide numbers
+    progress: true                # progress bar
+    controls: true                # next/prev arrows
+    transition: fade              # none | fade | slide | convex | concave | zoom
+    transition-speed: fast        # default | fast | slow
+    center: false                 # top-align content (nice for charts)
+    # width: 1600                 # slide canvas size
     # height: 900
     margin: 0.06
-    highlight-style: github           # code highlighting
+    highlight-style: github      # code highlighting
     code-line-numbers: true
-    # css: styles.scss                  # attach your custom styles (see next section)
+    # css: styles.scss           # attach your custom styles (see the file)
 footer: "WRI · IDEEA"
-logo: images/logo.png                 # optional, shows on all slides
-title-slide-attributes:
-  data-background-image: images/cover.jpg
-  data-background-size: cover
+logo: images/logo_wri.png        # optional, shows on all slides
+# title-slide-attributes:
+  # data-background-image: images/cover.jpg
+  # data-background-size: cover
   # data-background-opacity: 0.2
 # format: pptx
 # format: beamer
@@ -30,17 +33,23 @@ editor_options:
   chunk_output_type: console
 ---
 
+<!--
+================================================================================
+Notes:
+This document drafts a presentation (in html, Power Point, or PDF format -
+see "format" in the YAML - top of the screen).
+Rendering may require Quarto (https://quarto.org/) installed on the system.
+The presentation is created in two steps. First: generation of all figures,
+and saving them to /images directory. Set `build: true` to recreate all figures.
+Second step will use the pre-created figures to render the presentation.
+Use: `build: false` to avoid creating figures and other inputs, using pre-built
+files only.
 
-<!-- Blind notes: -->
-<!-- This document drafts a presentation (in html, Power Point, or PDF format - -->
-<!-- see "format" in the YAML - top of the screen). -->
-<!-- Rendering may require Quarto (https://quarto.org/) installed on the system. -->
-<!-- The presentation is created in two steps. First: generation of all figures, -->
-<!-- and saving them to /images directory. Set `build: true` to recreate all figures. -->
-<!-- Second step will use the pre-created figures to render the presentation. -->
-<!-- Use: `build: false` to avoid creating figures and other inputs, using pre-built -->
-<!-- files only. -->
-ToDo:
+================================================================================
+
+ToDo list: 
+**2025-09-18**
+
 - transmission figures
 - aggregated trade: add to figures (trade vs generation)
 - 
@@ -49,8 +58,31 @@ b) Comparison graph for costs incurred by the government with current energy mix
        i. We can also show how these costs would change through the years given some assumptions
 c) Region-wise demand and supply for each season/quarter for one year with the different sources.
 
-<!-- - representative day for each season (one rep. & average) -->
+- representative day for each season (one rep. & average) 
 
+References and resources: 
+- package `VedicDateTime` - to check if useful for date-time conversions
+
+
+
+## A list of priority outputs from the IDEEA model for the demo
+✓ CO2 emissions - at a national level for at least two years (base year and 2050/2070)  
+✓ (Optional) - the same results, visualised for two scenarios (e.g. scen_REF & scen_CAP)  
+✓ Installed capacity - at the national for two or three reference years (e.g., base year, 2030/40, 2050/70)  
+?- Annual and seasonal supply curves for 1-2 representative years  - add from 32-region model load curve for MH, aggregated by month
+✓ Cost of electricity supply  
+✓ Solar and wind clustered regions at the national 
+  ?-  and *state* level  
+✓ Source wise generation  
+?- State-level case study of Karnataka/ West Bengal:
+    - For meeting energy demand in a future year, say 2035, 
+    - what will be the additional installed capacity requirement? (solar and wind)  
+?- Where should these new plants come up?  
+?- How much electricity will the *state* need to import?  
+✓/?- Does the *state* have enough transmission capacity to import?  
+-->
+
+<!-- ==================== Setup: load data and packages =================== -->
 
 ```{r setup, include=FALSE}
 # Load packaged and data before rendering the presentation
@@ -115,34 +147,16 @@ if (nrow(obj_test) != length(sns)) {
 
 ```
 
-<!-- ## IDEEA: model to test alternative futures of India's energy system   -->
-...
+<!-- ======================== Slides start here =========================== -->
 
 ## Scenarios
 [list assumptions]
-
-## A list of priority outputs from the IDEEA model for the demo
-✓ CO2 emissions - at a national level for at least two years (base year and 2050/2070)  
-✓ (Optional) - the same results, visualised for two scenarios (e.g. scen_REF & scen_CAP)  
-✓ Installed capacity - at the national for two or three reference years (e.g., base year, 2030/40, 2050/70)  
-?- Annual and seasonal supply curves for 1-2 representative years  - add from 32-region model load curve for MH, aggregated by month
-✓ Cost of electricity supply  
-✓ Solar and wind clustered regions at the national 
-  ?-  and *state* level  
-✓ Source wise generation  
-?- State-level case study of Karnataka/ West Bengal:
-    - For meeting energy demand in a future year, say 2035, 
-    - what will be the additional installed capacity requirement? (solar and wind)  
-?- Where should these new plants come up?  
-?- How much electricity will the *state* need to import?  
-✓/?- Does the *state* have enough transmission capacity to import?  
-
+...  
 
 # Data / Model inputs
-...
+...  
 
 ## Electricity demand assumptions
-OL: replace colors
 ```{r}
 # demand is the same across scenarios, load one (REF)
 pDemand <- getData(sns$REF, "pDemand", merge = T, process = T
@@ -150,12 +164,30 @@ pDemand <- getData(sns$REF, "pDemand", merge = T, process = T
                    ) |>
   filter(year %in% report_years) |>
   mutate(
-    datetime = tsl2dtm(slice, tmz = "Asia/Kolkata", year = year),
+    datetime = tsl2dtm(slice, tmz = "Asia/Kolkata", year = 2019), # @Varun: Confirm the year since it affects weekdays
     DATE = as.Date(datetime),
     HOUR = tsl2hour(slice),
     YDAY = tsl2yday(slice),
-    MONTH = tsl2month(slice)
-  )
+    MONTH = tsl2month(slice),
+    SEASON = case_when(
+      MONTH %in% c(12, 1, 2) ~ "Winter",
+      MONTH %in% (3:5) ~ "Spring",
+      MONTH %in% (6:8) ~ "Summer",
+      MONTH %in% (9:11) ~ "Autumn"
+    ) |> 
+      factor(ordered = TRUE, 
+             levels = c("Spring", "Summer", "Autumn", "Winter")),
+    QUARTER = case_when(
+      MONTH %in% (4:6) ~ "Q1",
+      MONTH %in% (6:8) ~ "Q2",
+      MONTH %in% (9:12) ~ "Q3",
+      MONTH %in% (1:3) ~ "Q4"
+    ),
+    WEEKDAY = format(datetime, "%a") |>
+      factor(ordered = TRUE,
+             levels = format(as.Date("1970-01-04") + 0:6, "%a"))
+  ) |>
+  as.data.table()
 
 # plot total demand by type
 pDemand |> 
@@ -193,11 +225,89 @@ pDemand |>
   group_by(comm, region, year, MONTH, HOUR) |>
   summarise(value = mean(value, na.rm = T), .groups = "drop") |>
   ggplot() +
-  geom_line(aes(HOUR, value, colour = (MONTH), group = MONTH)) +
+  geom_line(aes(HOUR, value, colour = as.character(MONTH), group = MONTH),
+            linewidth = 1) +
   # scale_colour_viridis_d(option = "H", alpha = .75, name = "Month") +
-  scale_colour_viridis_c(option = "H", alpha = 1, limits = c(0, 12), 
-                         name = "Month") +
+  # scale_colour_viridis_d(option = "H", alpha = 1, name = "Month") +
+  # scale_colour_brewer(palette = "Set1", name = "Month") +
+  scale_colour_brewer(palette = "Paired", name = "Month") +
   facet_wrap(~region, scales = "free_y") +
+  labs(x = "Hour of Day", y = "GWh") +
+  theme_bw()
+```
+
+## Load by season
+```{r}
+pDemand |>
+  filter(year == 2025, process == "DEMELC_BY") |>
+  group_by(comm, region, year, SEASON, HOUR) |>
+  summarise(value = mean(value, na.rm = T), .groups = "drop") |>
+  ggplot() +
+  geom_line(aes(HOUR, value, colour = SEASON, group = SEASON),
+            linewidth = 1) +
+  scale_colour_viridis_d(option = "D", alpha = 1, name = "Season", 
+                         direction = -1) +
+  # scale_colour_viridis_d(option = "D", alpha = 1, name = "Month") +
+  # scale_colour_brewer(palette = "Paired", name = "Month") +
+  # scale_colour_brewer(palette = "Paired", name = "Month") +
+  facet_wrap(~region, scales = "free_y") +
+  labs(x = "Hour of Day", y = "GWh") +
+  theme_bw()
+```
+
+## Load by quater
+```{r}
+pDemand |>
+  filter(year == 2025, process == "DEMELC_BY") |>
+  group_by(comm, region, year, QUARTER, HOUR) |>
+  summarise(value = mean(value, na.rm = T), .groups = "drop") |>
+  ggplot() +
+  geom_line(aes(HOUR, value, colour = QUARTER, group = QUARTER),
+            linewidth = 1) +
+  scale_colour_viridis_d(option = "D", alpha = 1, name = "Quater", 
+                         direction = -1) +
+  # scale_colour_viridis_d(option = "D", alpha = 1, name = "Month") +
+  # scale_colour_brewer(palette = "Paired", name = "Month") +
+  # scale_colour_brewer(palette = "Paired", name = "Month") +
+  facet_wrap(~region, scales = "free_y") +
+  labs(x = "Hour of Day", y = "GWh") +
+  theme_bw()
+```
+
+## Load by Weekday
+```{r}
+pDemand |>
+  filter(year == 2025, process == "DEMELC_BY") |>
+  group_by(comm, region, year, WEEKDAY, HOUR) |>
+  summarise(value = mean(value, na.rm = T), .groups = "drop") |>
+  ggplot() +
+  geom_line(aes(HOUR, value, colour = WEEKDAY, group = WEEKDAY),
+            linewidth = 1) +
+  scale_colour_viridis_d(option = "D", alpha = 1, name = "Weekday", 
+                         direction = -1) +
+  # scale_colour_viridis_d(option = "D", alpha = 1, name = "Month") +
+  # scale_colour_brewer(palette = "Paired", name = "Month") +
+  # scale_colour_brewer(palette = "Paired", name = "Month") +
+  facet_wrap(~region, scales = "free_y") +
+  labs(x = "Hour of Day", y = "GWh") +
+  theme_bw()
+```
+
+## National Load by Weekday and Season
+```{r}
+pDemand |>
+  filter(year == 2025, process == "DEMELC_BY") |>
+  group_by(comm, year, SEASON, WEEKDAY, HOUR) |>
+  summarise(value = mean(value, na.rm = T), .groups = "drop") |>
+  ggplot() +
+  geom_line(aes(HOUR, value, colour = WEEKDAY, group = WEEKDAY),
+            linewidth = 1) +
+  scale_colour_viridis_d(option = "D", alpha = 1, name = "Weekday", 
+                         direction = -1) +
+  # scale_colour_viridis_d(option = "D", alpha = 1, name = "Month") +
+  # scale_colour_brewer(palette = "Paired", name = "Month") +
+  # scale_colour_brewer(palette = "Paired", name = "Month") +
+  facet_wrap(~SEASON, scales = "free_y") +
   labs(x = "Hour of Day", y = "GWh") +
   theme_bw()
 ```
@@ -564,12 +674,12 @@ vTradeIr |>
 ```
 
 
-## Unserved load (curtailed demand)
-```{r}
+<!-- ## Unserved load (curtailed demand) -->
+```{r, include=FALSE}
 vImportRow <- getData(sns, "vImportRow", comm = "ELC", 
                       merge = T, digits = 1) 
 
-vImportRow$value |> summary()
+# vImportRow$value |> summary()
 # vImportRow$imp |> unique()
 vImportRow |>
   filter(year %in% report_years) |>
@@ -586,7 +696,7 @@ vImportRow |>
 vExportRow <- getData(sns, "vExportRow", comm = "ELC", 
                       merge = T, digits = 1) 
 
-vExportRow$value |> summary()
+# vExportRow$value |> summary()
 # vImportRow$imp |> unique()
 vExportRow |>
   filter(year %in% report_years) |>
@@ -705,5 +815,13 @@ ggplot(filter(all_costs, year %in% report_years)) +
 
 ```
 
+# Thank you for your attention!
+
+Contacts: ...
+
+# Extra slides
+<!-- 
+=========== Add supplementary slides below this comment =======================
+-->
 
  

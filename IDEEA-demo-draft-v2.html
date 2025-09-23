@@ -10,6 +10,7 @@
   <meta name="generator" content="quarto-1.7.32">
 
   <meta name="author" content="WRI">
+  <meta name="dcterms.date" content="2025-09-23">
   <title>IDEEA-demo (draft)</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -126,8 +127,9 @@
   <div class="reveal">
     <div class="slides">
 
-<section id="title-slide" data-background-image="images/cover.jpg" data-background-size="cover" class="quarto-title-block center">
+<section id="title-slide" class="quarto-title-block center">
   <h1 class="title">IDEEA-demo (draft)</h1>
+  <p class="subtitle">model to test alternative futures of India’s energy system</p>
 
 <div class="quarto-title-authors">
 <div class="quarto-title-author">
@@ -137,39 +139,64 @@ WRI
 </div>
 </div>
 
+  <p class="date">2025-09-23</p>
 </section>
 <section class="slide level2">
 
-<!-- Blind notes: -->
-<!-- This document drafts a presentation (in html, Power Point, or PDF format - -->
-<!-- see "format" in the YAML - top of the screen). -->
-<!-- Rendering may require Quarto (https://quarto.org/) installed on the system. -->
-<!-- The presentation is created in two steps. First: generation of all figures, -->
-<!-- and saving them to /images directory. Set `build: true` to recreate all figures. -->
-<!-- Second step will use the pre-created figures to render the presentation. -->
-<!-- Use: `build: false` to avoid creating figures and other inputs, using pre-built -->
-<!-- files only. -->
-<p>ToDo: - transmission figures - aggregated trade: add to figures (trade vs generation) - a) Comparison of existing capacity vs planned/required capacity (in 2070) for the different sources b) Comparison graph for costs incurred by the government with current energy mix vs the ideal energy mix i. We can also show how these costs would change through the years given some assumptions c) Region-wise demand and supply for each season/quarter for one year with the different sources.</p>
-<!-- - representative day for each season (one rep. & average) -->
-<!-- ## IDEEA: model to test alternative futures of India's energy system   -->
-<p>…</p>
+<!--
+================================================================================
+Notes:
+This document drafts a presentation (in html, Power Point, or PDF format -
+see "format" in the YAML - top of the screen).
+Rendering may require Quarto (https://quarto.org/) installed on the system.
+The presentation is created in two steps. First: generation of all figures,
+and saving them to /images directory. Set `build: true` to recreate all figures.
+Second step will use the pre-created figures to render the presentation.
+Use: `build: false` to avoid creating figures and other inputs, using pre-built
+files only.
+
+================================================================================
+
+ToDo list: 
+**2025-09-18**
+
+- transmission figures
+- aggregated trade: add to figures (trade vs generation)
+- 
+a) Comparison of existing capacity vs planned/required capacity (in 2070) for the different sources 
+b) Comparison graph for costs incurred by the government with current energy mix vs the ideal energy mix
+       i. We can also show how these costs would change through the years given some assumptions
+c) Region-wise demand and supply for each season/quarter for one year with the different sources.
+
+- representative day for each season (one rep. & average) 
+
+References and resources: 
+- package `VedicDateTime` - to check if useful for date-time conversions
+
+
+
+## A list of priority outputs from the IDEEA model for the demo
+✓ CO2 emissions - at a national level for at least two years (base year and 2050/2070)  
+✓ (Optional) - the same results, visualised for two scenarios (e.g. scen_REF & scen_CAP)  
+✓ Installed capacity - at the national for two or three reference years (e.g., base year, 2030/40, 2050/70)  
+?- Annual and seasonal supply curves for 1-2 representative years  - add from 32-region model load curve for MH, aggregated by month
+✓ Cost of electricity supply  
+✓ Solar and wind clustered regions at the national 
+  ?-  and *state* level  
+✓ Source wise generation  
+?- State-level case study of Karnataka/ West Bengal:
+    - For meeting energy demand in a future year, say 2035, 
+    - what will be the additional installed capacity requirement? (solar and wind)  
+?- Where should these new plants come up?  
+?- How much electricity will the *state* need to import?  
+✓/?- Does the *state* have enough transmission capacity to import?  
+-->
+<!-- ==================== Setup: load data and packages =================== -->
+<!-- ======================== Slides start here =========================== -->
 </section>
 <section id="scenarios" class="slide level2">
 <h2>Scenarios</h2>
-<p>[list assumptions]</p>
-</section>
-<section id="a-list-of-priority-outputs-from-the-ideea-model-for-the-demo" class="slide level2">
-<h2>A list of priority outputs from the IDEEA model for the demo</h2>
-<p>✓ CO2 emissions - at a national level for at least two years (base year and 2050/2070)<br>
-✓ (Optional) - the same results, visualised for two scenarios (e.g.&nbsp;scen_REF &amp; scen_CAP)<br>
-✓ Installed capacity - at the national for two or three reference years (e.g., base year, 2030/40, 2050/70)<br>
-?- Annual and seasonal supply curves for 1-2 representative years - add from 32-region model load curve for MH, aggregated by month ✓ Cost of electricity supply<br>
-✓ Solar and wind clustered regions at the national ?- and <em>state</em> level<br>
-✓ Source wise generation<br>
-?- State-level case study of Karnataka/ West Bengal: - For meeting energy demand in a future year, say 2035, - what will be the additional installed capacity requirement? (solar and wind)<br>
-?- Where should these new plants come up?<br>
-?- How much electricity will the <em>state</em> need to import?<br>
-✓/?- Does the <em>state</em> have enough transmission capacity to import?</p>
+<p>[list assumptions] …</p>
 </section>
 <section>
 <section id="data-model-inputs" class="title-slide slide level1 center">
@@ -178,7 +205,6 @@ WRI
 </section>
 <section id="electricity-demand-assumptions" class="slide level2">
 <h2>Electricity demand assumptions</h2>
-<p>OL: replace colors</p>
 
 <img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-1-1.png" width="960" class="r-stretch"></section>
 <section id="load-curve" class="slide level2">
@@ -189,18 +215,34 @@ WRI
 <h2>Load by month (average)</h2>
 
 <img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-3-1.png" width="960" class="r-stretch"></section>
+<section id="load-by-season" class="slide level2">
+<h2>Load by season</h2>
+
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-4-1.png" width="960" class="r-stretch"></section>
+<section id="load-by-quater" class="slide level2">
+<h2>Load by quater</h2>
+
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-5-1.png" width="960" class="r-stretch"></section>
+<section id="load-by-weekday" class="slide level2">
+<h2>Load by Weekday</h2>
+
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-6-1.png" width="960" class="r-stretch"></section>
+<section id="national-load-by-weekday-and-season" class="slide level2">
+<h2>National Load by Weekday and Season</h2>
+
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-7-1.png" width="960" class="r-stretch"></section>
 <section id="load-profile-heatmap" class="slide level2">
 <h2>Load profile (heatmap)</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-4-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-8-1.png" width="960" class="r-stretch"></section>
 <section id="load-curve-in-mh-by-month" class="slide level2">
 <h2>Load curve in MH by month</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-5-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-9-1.png" width="960" class="r-stretch"></section>
 <section id="load-profile-heatmap-in-mh" class="slide level2">
 <h2>Load profile (heatmap) in MH</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-6-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-10-1.png" width="960" class="r-stretch"></section>
 <section id="capacity-factors" class="slide level2">
 <h2>Capacity factors</h2>
 <!-- ![](images/solar_snapshot.pn -->
@@ -263,47 +305,47 @@ WRI
 <section id="co2-emission-trends-by-scenario-mt" class="slide level2">
 <h2>CO2 emission trends by scenario, Mt</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-8-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-12-1.png" width="960" class="r-stretch"></section>
 <section id="criteria-pollutants-pm-so2-nox" class="slide level2">
 <h2>Criteria pollutants (PM, SO2, NOx)</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-9-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-13-1.png" width="960" class="r-stretch"></section>
 <section id="total-capacity" class="slide level2">
 <h2>Total capacity</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-10-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-14-1.png" width="960" class="r-stretch"></section>
 <section id="new-installations-gw" class="slide level2">
 <h2>New installations, GW</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-11-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-15-1.png" width="960" class="r-stretch"></section>
 <section id="solar-installatons-2025-2070-by-region-gw" class="slide level2">
 <h2>Solar installatons 2025-2070 by region, GW</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-12-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-16-1.png" width="960" class="r-stretch"></section>
 <section id="wind-installatons-2025-2070-gw" class="slide level2">
 <h2>Wind installatons 2025-2070, GW</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-13-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-17-1.png" width="960" class="r-stretch"></section>
 <section id="thermal-installatons-2025-2070-gw" class="slide level2">
 <h2>Thermal installatons 2025-2070, GW</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-14-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-18-1.png" width="960" class="r-stretch"></section>
 <section id="generation-profile-ref-scenario" class="slide level2">
 <h2>Generation profile: REF scenario</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-15-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-19-1.png" width="960" class="r-stretch"></section>
 <section id="generation-profile-cap-scenario" class="slide level2">
 <h2>Generation profile: CAP scenario</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-16-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-20-1.png" width="960" class="r-stretch"></section>
 <section id="solar-installations-by-cluster-and-year" class="slide level2">
 <h2>Solar installations by cluster and year</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-17-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-21-1.png" width="960" class="r-stretch"></section>
 <section id="wind-installations-by-cluster-and-year" class="slide level2">
 <h2>Wind installations by cluster and year</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-18-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-22-1.png" width="960" class="r-stretch"></section>
 <section id="energy-storage-gwh" class="slide level2">
 <h2>Energy storage, GWh</h2>
 <div class="cell">
@@ -452,43 +494,39 @@ WRI
 </table>
 </div>
 </div>
+<!-- ## Unserved load (curtailed demand) -->
 </section>
-<section id="unserved-load-curtailed-demand" class="slide level2">
-<h2>Unserved load (curtailed demand)</h2>
-<div class="cell">
-<div class="cell-output cell-output-stdout">
-<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-      0       0       0       0       0       0 </code></pre>
-</div>
-
-</div>
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-22-1.png" width="960" class="r-stretch"></section>
 <section id="curtailed-generation-oversupply" class="slide level2">
 <h2>Curtailed generation (oversupply)</h2>
-<div class="cell">
-<div class="cell-output cell-output-stdout">
-<pre><code>   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-   0.00    0.00    0.00    8.42    0.00  478.70 </code></pre>
-</div>
 
-</div>
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-23-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-27-1.png" width="960" class="r-stretch"></section>
 <section id="curtailed-generation-in-2070-heatmap" class="slide level2">
 <h2>Curtailed generation in 2070 (heatmap)</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-24-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-28-1.png" width="960" class="r-stretch"></section>
 <section id="electricity-costs-by-scenario" class="slide level2">
 <h2>Electricity costs by scenario</h2>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-25-1.png" width="960" class="r-stretch"></section>
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-29-1.png" width="960" class="r-stretch"></section>
 <section id="costs-structure" class="slide level2">
 <h2>Costs structure</h2>
 
+<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-30-1.png" width="960" class="r-stretch"></section></section>
+<section id="thank-you-for-your-attention" class="title-slide slide level1 center">
+<h1>Thank you for your attention!</h1>
+<p>Contacts: …</p>
+</section>
 
-<img data-src="IDEEA-demo-draft-v2_files/figure-revealjs/unnamed-chunk-26-1.png" width="960" class="r-stretch"></section></section>
+<section id="extra-slides" class="title-slide slide level1 center">
+<h1>Extra slides</h1>
+<!-- 
+=========== Add supplementary slides below this comment =======================
+-->
+
+</section>
     </div>
   <div class="quarto-auto-generated-content" style="display: none;">
-<p><img src="images/logo.png" class="slide-logo"></p>
+<p><img src="images/logo_wri.png" class="slide-logo"></p>
 <div class="footer footer-default">
 <p>WRI · IDEEA</p>
 </div>
