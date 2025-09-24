@@ -103,3 +103,20 @@ getData(sns, "vObjective")
 
 ```
 
+## Study list (minimal requirements)
+
+A list of cheat sheets for broadly used R-packages:
+https://posit.co/resources/cheatsheets/ 
+
+Recommended (used in the project):  
+
+* [Data transformation with dplyr](https://rstudio.github.io/cheatsheets/html/data-transformation.html)  
+`dplyr` offers an intuitive way to work with tabular data. It's "macro-language" is adopted by multiple data formats and packages. We use it all the time.  
+
+* [Data visualization with ggplot2](https://rstudio.github.io/cheatsheets/html/data-visualization.html)
+Most of figures in the project are based on `ggplot2` package.
+
+* [Publish and Share with Quarto](https://rstudio.github.io/cheatsheets/html/quarto.html)  
+`quarto` is a successor of R-markdown to create reproducible research documents, presentations, web-pages.  
+
+

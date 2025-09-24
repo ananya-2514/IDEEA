@@ -95,6 +95,7 @@ if (reset_env) {
   reset_session(warn = TRUE, prompt = FALSE)
 }
 source("R/setup.R")
+source("R/functions.R")
 
 # set a parameter with number of regions for easy switch in figures 
 nreg <- 5
@@ -157,7 +158,9 @@ if (nrow(obj_test) != length(sns)) {
 ...  
 
 ## Electricity demand assumptions
-```{r}
+<!-- 
+Note: use `include=TRUE` or `include=FALSE` to show or mute the output of a chunk -->
+```{r, include=FALSE}
 # demand is the same across scenarios, load one (REF)
 pDemand <- getData(sns$REF, "pDemand", merge = T, process = T
                    # year = report_years
@@ -202,6 +205,21 @@ pDemand |>
   theme_bw()
 
 ```
+
+```{r, include=TRUE}
+pDemand |> 
+  rename(PROCESS = process, YEAR = year) |>
+  mutate(YEAR = as.factor(YEAR)) |>
+  group_by(scenario, comm, YEAR) |>
+  summarise(GWh = sum(value), .groups = "drop") |>
+  ggplot() +
+  geom_col(aes(YEAR, GWh/1e3), fill = "dodgerblue") +
+  scale_fill_viridis_d(name = "", direction = -1, option = "D") +
+  labs(x = "", y = "TWh") +
+  theme_bw()
+
+```
+
 
 ## Load curve
 ```{r}
@@ -445,6 +463,8 @@ ggplot(conv_emis) +
 
 ## Total capacity
 ```{r}
+# adjust capacity of 1-hour storage:
+adj_storage_cap <- 4 # hours of storage per unit of capacity
 vTechCap_ELC <- getData(sns, name = "vTechCap", merge = T, 
                            digits = 1, drop.zeros = T, process = T) |>
   # data pre-processing for figures:
@@ -456,15 +476,40 @@ vTechCap_ELC <- getData(sns, name = "vTechCap", merge = T,
   group_by(scenario, process, year) |>
   summarise(value = sum(value), .groups = "drop")
 
-ggplot(vTechCap_ELC) +
-  geom_bar(aes(as.factor(year), value, fill = process), stat = "identity") +
+vStorageCap_4h <- getData(sns, "vStorageCap", process = T, 
+                       merge = T, digits = 2, drop.zeros = T) |>
+  drop_process_vintage() |>
+  group_by(scenario, process, year) |>
+  summarise(
+    value = sum(value) / adj_storage_cap, 
+    .groups = "drop"
+  ) 
+
+# combined techs and storage
+vCap_ELC <- bind_rows(vTechCap_ELC, vStorageCap_4h) |>
+  add_process_label() |>
+  group_by(scenario, process_label, year) |>
+  summarise(value = sum(value, na.rm = T), .groups = "drop")
+
+ggplot(vCap_ELC) +
+  geom_bar(aes(as.factor(year), value, fill = process_label), 
+           stat = "identity") +
   facet_wrap(~scenario) +
   scale_fill_viridis_d(option = "H", direction = -1, name = "Technology") +
   # facet_grid(~region) +
   labs(x = "", y = "GW") +
   theme_bw()
-
 ```
+
+## Capacity in 2070, GW
+```{r}
+# Add table
+vCap_ELC |> 
+  filter(year %in% c(2070)) |>
+  pivot_wider(names_from = scenario) |>
+  kableExtra::kable(digits = 1)
+```
+
 
 ## New installations, GW
 ```{r}
@@ -495,6 +540,7 @@ ggplot(vTechNewCap_ELC_agg) +
 ```{r}
 vTechNewCap_ELC <- getData(sns, name = "vTechNewCap", merge = T, 
                            digits = 1, drop.zeros = T, process = T) |>
+  filter(year %in% report_years) |>
   drop_process_cluster() |> drop_process_vintage() |>
   filter(!(process %in% c("EDC2ELC", "ELC2EDC"))) |> # drop converter stations
   filter(!grepl("^ALIAS", process)) |> # drop process aliases
@@ -578,6 +624,7 @@ vTechCap <- getData(sns,
 
 vTechCap_ESOL_sf <-
   vTechCap |>
+  filter(year %in% report_years) |>
   filter(grepl("ESOL", process)) |> # select solar techs
   add_cluster_column() |> # add cluster number
   # add shapes for every cluster
@@ -607,6 +654,7 @@ ggplot() +
 ideea_win_cl_sf <- get_ideea_cl_sf("win", nreg = nreg, tol = .1) 
 vTechCap_EWIN_sf <-
   vTechCap |>
+  filter(year %in% report_years) |>  
   filter(grepl("EWIN", process)) |> # select solar techs
   add_cluster_column() |> # add cluster number
   # add shapes for every cluster
@@ -629,31 +677,42 @@ ggplot() +
 
 ```
 
-## Energy storage, GWh
+## Storage energy capacity, GWh
 ```{r}
-vStorageCap <- getData(sns, "vStorageCap", process = T, 
-                       merge = T, digits = 2, drop.zeros = T) |>
-  drop_process_vintage() |>
-  group_by(scenario, process, year) |>
-  summarise(
-    value = sum(value), 
-    .groups = "drop"
-  ) |>
-  pivot_wider(names_from = scenario)
-
-kableExtra::kable(vStorageCap)
+pivot_wider(vStorageCap_4h, names_from = scenario) |> 
+  kableExtra::kable(digits = 1)
 
 ```
 
 
 ## Transmission 
-```{r}
+```{r, include=FALSE}
 vTradeCap <- getData(sns, "vTradeCap", digits = 1, 
                      drop.zeros = T, merge = T)
 vTradeNewCap <- getData(sns, "vTradeNewCap", digits = 1, 
                         drop.zeros = T, 
                         merge = T)
 # Not installing in the 5-reg scenario ???
+# Further considerations:
+# - validate costs of transmission expansion for both DC and AC
+# - validate pre-existing capacity (pTradeStock) - might be too high.
+# getData(sns, c("pTradeStock", "vTradeCap"), process = T, merge = T, digits = 1, year = 2070) |> pivot_wider(names_from = name) |> as.data.table()
+
+# Converter stations for DC lines:
+dc_converters <- getData(sns, c("vTechNewCap", "pTechStock"), tech_ = "EDC",
+                         process = T, merge = T, digits = 1) 
+dc_converters |> group_by(scenario, process, region) |> 
+  summarise(value = sum(value), .groups = "drop") |> 
+  pivot_wider(names_from = scenario)
+
+dc_converters |> group_by(scenario, process, region) |> 
+  summarise(value = sum(value), .groups = "drop") |> 
+  pivot_wider(names_from = scenario)
+
+dc_converters |> group_by(scenario, process, region) |> 
+  summarise(value = sum(value), .groups = "drop") |> 
+  pivot_wider(names_from = c(scenario, process)) |>
+  kableExtra::kable()
 
 ```
 
@@ -735,7 +794,7 @@ vExportRow |>
 
 
 
-## Electricity costs by scenario
+## Levelized Costs of Electricity (LCOE)
 ```{r}
 # Total system costs
 vTotalCost <- getData(sns, name = "vTotalCost", merge = T)
@@ -792,20 +851,17 @@ ggplot(filter(elc_cost, year >= 2025)) +
 all_costs <- getData(sns, name_ = "cost|eac|fixom|varom", merge = T, 
                      process = T, digits = 1, drop.zeros = T, 
                      parameters = F) |> 
-  drop_process_cluster() |>
-  drop_process_vintage() |>
+  filter(!grepl("vTotalCost|vTradeCost|vTradeIrCost", name)) |>
+  # drop_process_cluster() |>
+  # drop_process_vintage() |>
+  add_costs_label() |>
   # group_by(scenario, name, process, region, year) |>
-  group_by(scenario, name, region, year) |>
+  group_by(scenario, name, costs_label, year) |>
   summarise(value = sum(value, na.rm = T), .groups = "drop") |>
   as.data.table()
 
-# all_costs[grepl("vTradeRowCost", name), process := "Lost Load"]
-# all_costs$fig_name <- NA_character_
-# all_costs[grepl("vStorageEac", name), fig_name := "InvCost Storage"]
-# all_costs[grepl("vStorageEac", name), fig_name := "InvCost Storage"]
-
 ggplot(filter(all_costs, year %in% report_years)) +
-  geom_col(aes(factor(year), value, fill = name)) +
+  geom_col(aes(factor(year), value, fill = costs_label)) +
   facet_grid(~scenario) +
   labs(x = "", y = "cr. ₹") +
   scale_fill_viridis_d(option = "H", name = "Cost type") +
@@ -816,7 +872,8 @@ ggplot(filter(all_costs, year %in% report_years)) +
 ```
 
 # Thank you for your attention!
-
+  
+  
 Contacts: ...
 
 # Extra slides
