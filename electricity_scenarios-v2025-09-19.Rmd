@@ -207,13 +207,14 @@ ggsave("images/wind_snapshot.png", wind_snapshot, scale = 1.5,
 
 # gif
 # ?ideea_gif_cf
-# ideea_gif_cf(x = win_cf_data, 
-#              ideea_cl_sf = ideea_win_cl_sf, 
-#              ideea_sf = ideea_sf, 
-#              cf_name = cf_name,
-#              slice = slices_1day_per_month[1:3],
-#              fps = 5, gif.width = 864, gif.height = 864,
-#              filename = glue("wind_capacity_factors_sample.gif"))
+ideea_gif_cf(x = win_cf_data, 
+             ideea_cl_sf = ideea_win_cl_sf,
+             ideea_sf = ideea_sf,
+             cf_name = cf_name,
+             slice = slices_1day_per_month[1:24],
+             fps = 5, gif.width = 864, gif.height = 864,
+             # fps = 5, gif.width = 432, gif.height = 432,
+             filename = glue("wind_capacity_factors_sample.gif"))
 ```
 
 ### Plot solar capacity factors by cluster
@@ -234,17 +235,45 @@ ggsave("images/solar_wind_snapshot.png", sol_win, scale = 1.5,
        width = 8.5, height = 5)
 
 # gif
-sol_cf_data_EAST <- filter(sol_cf_data, reg5 == "EAST")
-# ideea_gif_cf(
-#   x = sol_cf_data_EAST, 
-#   ideea_cl_sf = ideea_sol_cl_sf, 
-#   ideea_sf = ideea_sf, 
-#   cf_name = "scf_tl",
-#   slice = slices_1day_per_month[1:24],
-#   fps = 1, gif.width = 864, gif.height = 864,
-#   filename = glue("sol_capacity_factors_sample_EAST.gif"))
+# sol_cf_data_EAST <- filter(sol_cf_data, reg5 == "EAST")
+ideea_gif_cf(
+  x = sol_cf_data,
+  ideea_cl_sf = ideea_sol_cl_sf,
+  ideea_sf = ideea_sf,
+  cf_name = "scf_tl",
+  slice = slices_1day_per_month[1:24],
+  fps = 5, gif.width = 864, gif.height = 864,
+  # fps = 5, gif.width = 332, gif.height = 432,
+  filename = glue("sol_capacity_factors_sample_EAST.gif"))
 
 ```
+
+
+### (optional) cluster locations
+```{r, eval=FALSE}
+fig.wind <- ggplot() +
+  geom_sf(data = ideea_sf$geometry) +
+  geom_sf(data = ideea_win_cl_sf, aes(fill = wcf_100m), color = "grey15") +
+  scale_fill_viridis_c(option = "D", name = "CF") +
+  labs(title = "Wind, 100m hub") +
+  theme_ideea_map() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+fig.sol <- ggplot() +
+  geom_sf(data = ideea_sf$geometry) +
+  geom_sf(data = ideea_sol_cl_sf, aes(fill = scf_tl), color = "grey85") +
+  scale_fill_viridis_c(option = "A", name = "CF") +
+  labs(title = "Solar, 1-axis tracking") +
+  theme_ideea_map() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+library(patchwork)
+sol_win <- fig.sol + fig.wind
+ggsave("images/solar_wind_cf.png", sol_win, scale = 1.5,
+       width = 8.5, height = 5)
+
+```
+
 
 ```{r}
 
