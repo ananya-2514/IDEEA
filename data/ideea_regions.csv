@@ -1,63 +1,64 @@
-name46,reg46,name37,reg37,name36,reg36,name34,reg34,name32,reg32,name7,reg7,name5,reg5,name1,reg1,mainland,offshore,km2
-Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Eastern Region,EAST,India,IND,FALSE,FALSE,7377.90549420942
-Arunachal Pradesh,AR,Arunachal Pradesh,AR,Arunachal Pradesh,AR,Arunachal Pradesh,AR,Arunachal Pradesh,AR,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,82241.9364752442
-Assam,AS,Assam,AS,Assam,AS,Assam,AS,Assam,AS,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,78619.7207506985
-Bihar,BR,Bihar,BR,Bihar,BR,Bihar,BR,Bihar,BR,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,94296.0633440886
-Chandigarh,CH,Chandigarh,CH,Chandigarh,CH,Chandigarh,CH,Punjab and Chandigarh,PBH,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,119.044978824107
-Chhattisgarh,CT,Chhattisgarh,CT,Chhattisgarh,CT,Chhattisgarh,CT,Chhattisgarh,CT,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,135613.811144195
-Dadra and Nagar Haveli,DN,Dadra and Nagar Haveli,DN,Dadra and Nagar Haveli,DN,Dadra and Nagar Haveli,DN,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,498.840828220884
-Goa,GA,Goa,GA,Goa,GA,Goa,GA,Goa,GA,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,3645.8968488621
-Gujarat,GJ,Gujarat,GJ,Gujarat,GJ,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,186217.397494397
-Haryana,HR,Haryana,HR,Haryana,HR,Haryana,HR,Haryana,HR,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,44170.4115469205
-Himachal Pradesh,HP,Himachal Pradesh,HP,Himachal Pradesh,HP,Himachal Pradesh,HP,Himachal Pradesh,HP,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,55708.8150387709
-Jammu and Kashmir,JK,Jammu and Kashmir,JK,Jammu and Kashmir,JK,Jammu and Kashmir,JK,Jammu and Kashmir,JK,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,222335.56674752
-Jharkhand,JH,Jharkhand,JH,Jharkhand,JH,Jharkhand,JH,Jharkhand,JH,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,80062.2300876064
-Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,192430.975775726
-Kerala,KL,Kerala,KL,Kerala,KL,Kerala and part of Puducherry,KLY,Kerala and part of Puducherry,KLY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,38975.1004759327
-Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Southern Region,SOUTH,India,IND,FALSE,FALSE,617.633987355239
-Madhya Pradesh,MP,Madhya Pradesh,MP,Madhya Pradesh,MP,Madhya Pradesh,MP,Madhya Pradesh,MP,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,308808.040042398
-Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,308629.17780572
-Manipur,MN,Manipur,MN,Manipur,MN,Manipur,MN,Manipur,MN,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,22354.2493798623
-Meghalaya,ML,Meghalaya,ML,Meghalaya,ML,Meghalaya,ML,Meghalaya,ML,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,22486.7785870746
-Mizoram,MZ,Mizoram,MZ,Mizoram,MZ,Mizoram,MZ,Mizoram,MZ,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,21154.6804163647
-Nagaland,NL,Nagaland,NL,Nagaland,NL,Nagaland,NL,Nagaland,NL,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,16631.0510134315
-Delhi,DL,Delhi,DL,Delhi,DL,Delhi,DL,Delhi,DL,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,1507.93076578714
-Punjab,PB,Punjab,PB,Punjab,PB,Punjab,PB,Punjab and Chandigarh,PBH,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,50484.2052154297
-Rajasthan,RJ,Rajasthan,RJ,Rajasthan,RJ,Rajasthan,RJ,Rajasthan,RJ,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,343101.855340217
-Sikkim,SK,Sikkim,SK,Sikkim,SK,Sikkim,SK,Sikkim,SK,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,7142.07421235585
-Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,130395.811082003
-Telangana,TG,Telangana,TG,Telangana,TG,Telangana,TG,Telangana,TG,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,112261.625384841
-Tripura,TR,Tripura,TR,Tripura,TR,Tripura,TR,Tripura,TR,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,10468.2390495291
-Uttar Pradesh,UP,Uttar Pradesh,UP,Uttar Pradesh,UP,Uttar Pradesh,UP,Uttar Pradesh,UP,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,241206.357070473
-Uttarakhand,UT,Uttarakhand,UT,Uttarakhand,UT,Uttarakhand,UT,Uttarakhand,UT,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,53754.5679717583
-West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,85432.914276865
-Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,156306.627145316
-Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh and part of Puducherry,APY,Andhra Pradesh and part of Puducherry,APY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,163516.771242186
-Daman,DM,Daman,DM,Daman and Diu,DD,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,73.5360814436336
-Diu,DU,Diu,DU,Daman and Diu,DD,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,32.5312052672905
-Puducherry 0,PY.0,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,158.596054911427
-Puducherry 1,PY.1,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,151.891753585335
-Puducherry 2,PY.2,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,45.1519540657047
-Puducherry 3,PY.3,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,40.2333990609835
-Puducherry 4,PY.4,Puducherry,PY,Puducherry,PY,Andhra Pradesh and part of Puducherry,APY,Andhra Pradesh and part of Puducherry,APY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,32.9672614054851
-Puducherry 5,PY.5,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,17.9678867102889
-Puducherry 6,PY.6,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,11.1227495807804
-Puducherry 7,PY.7,Puducherry,PY,Puducherry,PY,Kerala and part of Puducherry,KLY,Kerala and part of Puducherry,KLY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,3.23897727515698
-Puducherry 8,PY.8,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,4.50316444011276
-Puducherry 9,PY.9,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,3.94917993248374
-Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Eastern Region,EAST,India,IND,FALSE,TRUE,7377.90549420942
-Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh and part of Puducherry,APY,Andhra Pradesh and part of Puducherry,APY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,163516.771242186
-Daman,DM,Daman,DM,Daman and Diu,DD,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,73.5360814436336
-Diu,DU,Diu,DU,Daman and Diu,DD,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,32.5312052672905
-Goa,GA,Goa,GA,Goa,GA,Goa,GA,Goa,GA,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,3645.8968488621
-Gujarat,GJ,Gujarat,GJ,Gujarat,GJ,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,186217.397494397
-Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,192430.975775726
-Kerala,KL,Kerala,KL,Kerala,KL,Kerala and part of Puducherry,KLY,Kerala and part of Puducherry,KLY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,38975.1004759327
-Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Southern Region,SOUTH,India,IND,FALSE,TRUE,617.633987355239
-Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,308629.17780572
-Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,TRUE,156306.627145316
-Puducherry 0,PY.0,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,158.596054911427
-Puducherry 1,PY.1,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,151.891753585335
-Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,130395.811082003
-West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,TRUE,85432.914276865
-,,,,,,,,,,,,,,Rest of the World,ROW,,,
+name46,reg46,name37,reg37,name36,reg36,name35,reg35,name34,reg34,name32,reg32,name7,reg7,name5,reg5,name1,reg1,mainland,offshore,km2
+Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Eastern Region,EAST,India,IND,FALSE,FALSE,7377.90549420942
+Arunachal Pradesh,AR,Arunachal Pradesh,AR,Arunachal Pradesh,AR,Arunachal Pradesh,AR,Arunachal Pradesh,AR,Arunachal Pradesh,AR,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,82241.9364752442
+Assam,AS,Assam,AS,Assam,AS,Assam,AS,Assam,AS,Assam,AS,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,78619.7207506985
+Bihar,BR,Bihar,BR,Bihar,BR,Bihar,BR,Bihar,BR,Bihar,BR,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,94296.0633440886
+Chandigarh,CH,Chandigarh,CH,Chandigarh,CH,Chandigarh,CH,Chandigarh,CH,Punjab and Chandigarh,PBH,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,119.044978824107
+Chhattisgarh,CT,Chhattisgarh,CT,Chhattisgarh,CT,Chhattisgarh,CT,Chhattisgarh,CT,Chhattisgarh,CT,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,135613.811144195
+Dadra and Nagar Haveli,DN,Dadra and Nagar Haveli,DN,Dadra and Nagar Haveli,DN,"Daman, Diu, Dadara, and Nagar",DR,Dadra and Nagar Haveli,DN,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,498.840828220884
+Goa,GA,Goa,GA,Goa,GA,Goa,GA,Goa,GA,Goa,GA,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,3645.8968488621
+Gujarat,GJ,Gujarat,GJ,Gujarat,GJ,Gujarat,GJ,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,186217.397494397
+Haryana,HR,Haryana,HR,Haryana,HR,Haryana,HR,Haryana,HR,Haryana,HR,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,44170.4115469205
+Himachal Pradesh,HP,Himachal Pradesh,HP,Himachal Pradesh,HP,Himachal Pradesh,HP,Himachal Pradesh,HP,Himachal Pradesh,HP,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,55708.8150387709
+Jammu and Kashmir,JK,Jammu and Kashmir,JK,Jammu and Kashmir,JK,Jammu and Kashmir,JK,Jammu and Kashmir,JK,Jammu and Kashmir,JK,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,222335.56674752
+Jharkhand,JH,Jharkhand,JH,Jharkhand,JH,Jharkhand,JH,Jharkhand,JH,Jharkhand,JH,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,80062.2300876064
+Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,192430.975775726
+Kerala,KL,Kerala,KL,Kerala,KL,Kerala,KL,Kerala and part of Puducherry,KLY,Kerala and part of Puducherry,KLY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,38975.1004759327
+Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Southern Region,SOUTH,India,IND,FALSE,FALSE,617.633987355239
+Madhya Pradesh,MP,Madhya Pradesh,MP,Madhya Pradesh,MP,Madhya Pradesh,MP,Madhya Pradesh,MP,Madhya Pradesh,MP,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,308808.040042398
+Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,308629.17780572
+Manipur,MN,Manipur,MN,Manipur,MN,Manipur,MN,Manipur,MN,Manipur,MN,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,22354.2493798623
+Meghalaya,ML,Meghalaya,ML,Meghalaya,ML,Meghalaya,ML,Meghalaya,ML,Meghalaya,ML,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,22486.7785870746
+Mizoram,MZ,Mizoram,MZ,Mizoram,MZ,Mizoram,MZ,Mizoram,MZ,Mizoram,MZ,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,21154.6804163647
+Nagaland,NL,Nagaland,NL,Nagaland,NL,Nagaland,NL,Nagaland,NL,Nagaland,NL,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,16631.0510134315
+Delhi,DL,Delhi,DL,Delhi,DL,Delhi,DL,Delhi,DL,Delhi,DL,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,1507.93076578714
+Punjab,PB,Punjab,PB,Punjab,PB,Punjab,PB,Punjab,PB,Punjab and Chandigarh,PBH,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,50484.2052154297
+Rajasthan,RJ,Rajasthan,RJ,Rajasthan,RJ,Rajasthan,RJ,Rajasthan,RJ,Rajasthan,RJ,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,343101.855340217
+Sikkim,SK,Sikkim,SK,Sikkim,SK,Sikkim,SK,Sikkim,SK,Sikkim,SK,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,7142.07421235585
+Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,130395.811082003
+Telangana,TG,Telangana,TG,Telangana,TG,Telangana,TG,Telangana,TG,Telangana,TG,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,112261.625384841
+Tripura,TR,Tripura,TR,Tripura,TR,Tripura,TR,Tripura,TR,Tripura,TR,North-Eastern Region,NORTHEAST,North-Eastern Region,NORTHEAST,India,IND,TRUE,FALSE,10468.2390495291
+Uttar Pradesh,UP,Uttar Pradesh,UP,Uttar Pradesh,UP,Uttar Pradesh,UP,Uttar Pradesh,UP,Uttar Pradesh,UP,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,241206.357070473
+Uttarakhand,UT,Uttarakhand,UT,Uttarakhand,UT,Uttarakhand,UT,Uttarakhand,UT,Uttarakhand,UT,Northern Region,NORTH,Northern Region,NORTH,India,IND,TRUE,FALSE,53754.5679717583
+West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,85432.914276865
+Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,FALSE,156306.627145316
+Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh and part of Puducherry,APY,Andhra Pradesh and part of Puducherry,APY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,163516.771242186
+Daman,DM,Daman,DM,Daman and Diu,DD,"Daman, Diu, Dadara, and Nagar",DR,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,73.5360814436336
+Diu,DU,Diu,DU,Daman and Diu,DD,"Daman, Diu, Dadara, and Nagar",DR,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,FALSE,32.5312052672905
+Puducherry 0,PY.0,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,158.596054911427
+Puducherry 1,PY.1,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,151.891753585335
+Puducherry 2,PY.2,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,45.1519540657047
+Puducherry 3,PY.3,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,40.2333990609835
+Puducherry 4,PY.4,Puducherry,PY,Puducherry,PY,Puducherry,PY,Andhra Pradesh and part of Puducherry,APY,Andhra Pradesh and part of Puducherry,APY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,32.9672614054851
+Puducherry 5,PY.5,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,17.9678867102889
+Puducherry 6,PY.6,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,11.1227495807804
+Puducherry 7,PY.7,Puducherry,PY,Puducherry,PY,Puducherry,PY,Kerala and part of Puducherry,KLY,Kerala and part of Puducherry,KLY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,3.23897727515698
+Puducherry 8,PY.8,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,4.50316444011276
+Puducherry 9,PY.9,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,FALSE,3.94917993248374
+Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Andaman and Nicobar,AN,Eastern Region,EAST,India,IND,FALSE,TRUE,7377.90549420942
+Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh,AP,Andhra Pradesh and part of Puducherry,APY,Andhra Pradesh and part of Puducherry,APY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,163516.771242186
+Daman,DM,Daman,DM,Daman and Diu,DD,Daman and Diu,DD,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,73.5360814436336
+Diu,DU,Diu,DU,Daman and Diu,DD,Daman and Diu,DD,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,32.5312052672905
+"Daman, Diu, Dadara, and Nagar",DR,"Daman, Diu, Dadara, and Nagar",DR,"Daman, Diu, Dadara, and Nagar",DR,"Daman, Diu, Dadara, and Nagar",DR,"Daman, Diu, Dadara, and Nagar",DR,"Daman, Diu, Dadara, and Nagar",DR,"Daman, Diu, Dadara, and Nagar",DR,Western Region,WEST,India,IND,TRUE,TRUE,106.067286710924
+Goa,GA,Goa,GA,Goa,GA,Goa,GA,Goa,GA,Goa,GA,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,3645.8968488621
+Gujarat,GJ,Gujarat,GJ,Gujarat,GJ,Gujarat,GJ,"Gujarat, Daman, and Diu",GJD,"Gujarat, Daman, Diu, Dadara, and Nagar",GJN,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,186217.397494397
+Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Karnataka,KA,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,192430.975775726
+Kerala,KL,Kerala,KL,Kerala,KL,Kerala,KL,Kerala and part of Puducherry,KLY,Kerala and part of Puducherry,KLY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,38975.1004759327
+Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Lakshadweep,LD,Southern Region,SOUTH,India,IND,FALSE,TRUE,617.633987355239
+Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Maharashtra,MH,Western Region,WEST,Western Region,WEST,India,IND,TRUE,TRUE,308629.17780572
+Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Odisha,OR,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,TRUE,156306.627145316
+Puducherry 0,PY.0,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,158.596054911427
+Puducherry 1,PY.1,Puducherry,PY,Puducherry,PY,Puducherry,PY,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,151.891753585335
+Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu,TN,Tamil Nadu and part of Puducherry,TNY,Tamil Nadu and part of Puducherry,TNY,Southern Region,SOUTH,Southern Region,SOUTH,India,IND,TRUE,TRUE,130395.811082003
+West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,West Bengal,WB,Eastern Region,EAST,Eastern Region,EAST,India,IND,TRUE,TRUE,85432.914276865
+,,,,,,,,,,,,,,,,Rest of the World,ROW,,,

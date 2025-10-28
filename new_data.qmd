@@ -1,0 +1,306 @@
+---
+title: "New Data: 2024-2025"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+Near term ToDo list:
+
+add state-level constraints for renewables potential from shared xls-worksheet
+
+electric load figures by state/month (consider a function) add (finish) simplified/clustered transmission network from PyPSA-Earth model reconstruct levelized costs function (\~end of Oct.) new sectors (which one is the next - to discuss on the next meeting) IDEEA technical note (when the first version from Varun is available)
+
+## Setup
+
+```{r}
+library(tidyverse)
+library(data.table)
+library(glue)
+library(plotly)
+
+# select number of regions
+# nreg <- 5 # not implemented
+nreg <- 32
+TZ <- "Asia/Kolkata"
+```
+
+## Installed Capacity
+
+```{r}
+# Path to the data
+# installed_capacity_r5 <- "data/Installed capacity/Region wise"
+installed_capacity_r32 <- "data/Installed capacity/State wise"
+
+# files 
+ff <- list.files(get(glue("installed_capacity_r{nreg}")), pattern = "xlsx$", full.names = T)
+
+xls_names <- readxl::excel_sheets(ff[1])
+
+ll <- list()
+for (i in seq_along(ff)) {
+  f <- ff[i]
+  message("Reading: '", basename(f), "'")
+  ll[[i]] <- 
+    readxl::read_excel(f, sheet = xls_names[1], na = c("", "-")) |>
+    # transform into long format
+    pivot_longer(cols = matches("^20"), 
+                 names_to = c("year", "month"), 
+                 names_pattern = "(.*)-(.*)",
+                 names_transform = as.integer) |>
+    # filter out ending-info-rows
+    filter(!grepl("NITI|https", Parameter)) |>
+    filter(Parameter != "") |>
+    # optional filter out "Totals"
+    filter(!grepl("Total", Parameter)) |>
+    # Split "source" and "units"
+    mutate(
+      date = as.Date(paste0(year, "-", month, "-", "15"), tz = TZ), # assuming mid-month
+      source = sub(" \\(.*", "", Parameter),
+      unit = sub(".*\\(in ([^)]+)\\).*", "\\1", Parameter),
+      .before = 1
+    ) |>
+    as.data.table()
+}
+
+# Merge the list into one table
+gen_capacity_2025 <- rbindlist(ll) |> select(-Parameter) 
+save(gen_capacity_2025, file = "data/gen_capacity_2025.RData")
+
+```
+
+### Plot capacity
+
+```{r}
+p <- ggplot(gen_capacity_2025) +
+  geom_col(aes(date, value/1e3, fill = source)) +
+  scale_fill_viridis_d(option = "H", name = "GW", direction = -1) +
+  facet_wrap(~State, scale = "free_y") +
+  theme_bw()
+# p
+ggsave("images/gen_capacity_2025.png", p, scale = 2, width = 10, height = 8)
+ggplotly(p)
+
+```
+
+## Daily generation
+
+```{r}
+daily_generation_r32 <- "data/Daily Generation/State-wise"
+
+# files 
+ff <- list.files(daily_generation_r32, pattern = "xlsx$", full.names = T)
+message("Found ", length(ff), " files")
+
+xls_names <- readxl::excel_sheets(ff[1])
+# f <- ff[1]
+
+ll <- list()
+for (i in seq_along(ff)) {
+  f <- ff[i]
+  message("Reading: '", basename(f), "'")
+  ll[[i]] <-
+    readxl::read_excel(f, sheet = xls_names[1], na = c("", "-")) |>
+    # transform into long format
+    pivot_longer(cols = matches("^20"), names_to = "Date"
+                 # names_to = c("year", "month"), 
+                 # names_pattern = "(.*)-(.*)",
+                 # names_transform = as.Date
+                 ) |>
+      # as.data.table()
+    # filter out ending-info-rows
+    filter(!grepl("NITI|https", Parameter)) |>
+    filter(Parameter != "") |>
+    # optional filter out "Totals"
+    filter(!grepl("Total", Parameter)) |>
+    # Split "source" and "units"
+    mutate(
+      # date = as.Date(paste0(year, "-", month, "-", "15")), # assuming mid-month
+      Date = as.Date(Date, tz = TZ),
+      source = sub(" \\(.*", "", Parameter),
+      source = sub(" - Generation", "", source) |> trimws(),
+      unit = sub(".*\\(in ([^)]+)\\).*", "\\1", Parameter) |> trimws(),
+      .before = 1
+    ) |>
+    as.data.table()
+}
+
+# Merge the list into one table
+generation_daily_2025 <- rbindlist(ll) |> select(-Parameter) 
+save(generation_daily_2025, file = "data/generation_daily_2025.RData")
+
+```
+
+### Plot generation
+
+```{r}
+p <- ggplot(generation_daily_2025) +
+  geom_col(aes(Date, value, fill = source)) +
+  scale_fill_viridis_d(option = "H", name = "MWh (MU)", direction = -1) +
+  facet_wrap(~State, scale = "free_y") +
+  theme_bw()
+# p
+ggsave("images/generation_daily_2025.png", p, scale = 1.5, width = 10, 
+       height = 8)
+ggplotly(p)
+
+```
+
+## Load curve
+
+```{r}
+# path to the data
+load_curve_r32 <- "data/Load curve/State-wise"
+
+# files 
+ff <- list.files(load_curve_r32, pattern = "xlsx$", full.names = T, 
+                 recursive = T)
+message("Found ", length(ff), " files")
+
+f <- ff[1]
+xls_names <- readxl::excel_sheets(f)
+
+ll <- list()
+for (i in seq_along(ff)) {
+  f <- ff[i]
+  message("Reading: '", basename(f), "'")
+  ll[[i]] <-
+    readxl::read_excel(f, sheet = xls_names[1], na = c("", "-")) |>
+    rename(MWh = `Hourly Demand Met (in MW)`) |>
+    # filter out ending-info-rows
+    filter(!grepl("NITI|https", MWh)) |>
+    filter(MWh != "") |>
+    # optional filter out "Totals"
+    filter(!grepl("Total", MWh)) |>
+    mutate(MWh = as.numeric(MWh)) |>
+    # Split "State" and "year"
+    mutate(
+      # date = as.Date(paste0(year, "-", month, "-", "15")), # assuming mid-month
+      # source = sub(" - Generation", "", source) |> trimws(),
+      year =  sub(".* - (\\d+)$", "\\1", State) |> trimws(),
+      datetime = paste(Date, year, sep = ", "),
+      datetime = as.POSIXct(datetime, format = "%d-%b %I%p, %Y", tz = TZ),
+      State = sub(" - \\d+$", "", State),
+      .before = 1
+    ) |>
+    as.data.table()
+}
+
+# Merge the list into one table
+load_curve_2025 <- rbindlist(ll)
+
+load_curve_2025 <- load_curve_2025 |>
+  # group_by(datetime, state) |>
+  # summarise(GWh = sum(GWh))
+  mutate(
+    DATE = as.Date(datetime),
+    HOUR = hour(datetime),
+    YDAY = yday(datetime),
+    MONTH = month(datetime) |> 
+      factor(levels = 1:12, ordered = TRUE),
+    MONTH_abb = month.abb[MONTH] |> 
+      factor(levels = month.abb, ordered = TRUE),
+    SEASON = case_when(
+      MONTH %in% c(12, 1, 2) ~ "Winter",
+      MONTH %in% (3:5) ~ "Spring",
+      MONTH %in% (6:8) ~ "Summer",
+      MONTH %in% (9:11) ~ "Autumn"
+    ) |> 
+      factor(ordered = TRUE, 
+             levels = c("Spring", "Summer", "Autumn", "Winter")),
+    QUARTER = case_when(
+      MONTH %in% (4:6) ~ "Q1",
+      MONTH %in% (6:8) ~ "Q2",
+      MONTH %in% (9:12) ~ "Q3",
+      MONTH %in% (1:3) ~ "Q4"
+    ),
+    WEEKDAY = format(datetime, "%a") |>
+      factor(ordered = TRUE,
+             levels = format(as.Date("1970-01-04") + 0:6, "%a"))
+  ) |>
+  as.data.table()  
+
+save(load_curve_2025, file = "data/load_curve_2025.RData")
+
+```
+
+### Plot loadcurve
+
+```{r}
+p <- load_curve_2025 |>
+  mutate(YM = paste(year, MONTH, sep = "-")) |>
+  group_by(YM, State) |>
+  summarise(GWh = sum(MWh/1e3, na.rm = T), .groups = "drop") |>
+  ggplot() +
+  geom_col(aes(YM, GWh/1e3, fill = GWh/1e4)) +
+  scale_fill_viridis_c(name = "TWh", direction = 1, option = "H") +
+  labs(x = "", y = "TWh") +
+  facet_wrap(~State, scales = "free_y") +
+  theme_bw()
+# p
+ggplotly(p)
+
+```
+
+```{r}
+p <- load_curve_2025 |>
+  filter(grepl("Mah", State), year == "2024") |>
+  ggplot() +
+  geom_line(aes(HOUR, MWh, colour = MONTH_abb, group = YDAY), 
+            # linewidth = .5, 
+            alpha = .75) +
+  # scale_colour_brewer(palette = "Paired", name = "Month") +
+  scale_colour_viridis_d(option = "H", alpha = .75, name = "Month") +
+  # scale_colour_viridis_d(option = "H", alpha = .75, limits = c(0, 12),
+                         # name = "Month") +
+  facet_wrap(~State, scales = "free_y") +
+  labs(x = "Hour of Day", y = "GWh") +
+  theme_bw() +
+  guides(colour = guide_legend(override.aes = list(linewidth = 1.5)))
+# p
+ggsave("images/load_curve_2024.png", p, scale = 1.5, width = 10, 
+       height = 8)
+
+
+```
+
+```{r}
+p <- load_curve_2025 |>
+  # filter(year == 2024) |>
+  group_by(year, datetime, DATE, HOUR, YDAY) |>
+  summarise(GWh = sum(MWh/1e3, na.rm = T), .groups = "drop") |>
+  as.data.table() |>
+  ggplot() +
+  geom_tile(aes(DATE, HOUR, fill = GWh)) +
+  scale_fill_viridis_c(option = "H", name = "GWh") +
+  scale_x_date(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0), breaks = seq(0, 24, by = 4)) +  
+  # facet_wrap(~scenario, scales = "free_y") +
+  # facet_wrap(~region, scales = "free") +
+  labs(x = "", y = "Hour of Day") +
+  theme_bw()
+
+ggsave("images/load_curve_heatmap_2024-25.png", p, scale = 1.5, width = 10, 
+       height = 5)
+
+
+```
+
+## Map states to reg32 and reg5
+```{r, eval=FALSE}
+NITI_Aayog_states <- gen_capacity_2025 |> select(State) |> unique()
+
+states_to_regs <- add_region_codes(
+  NITI_Aayog_states,
+  state_col = "State",
+  target_level = 35,
+  add_names = T,
+  show_scores = TRUE  # See which aggregation level was used
+)
+
+fwrite(states_to_regs, "data/states_to_regs.csv")
+
+```
+
+
+
