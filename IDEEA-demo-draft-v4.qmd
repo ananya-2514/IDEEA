@@ -167,12 +167,30 @@ Note: use `include=TRUE` or `include=FALSE` to show or mute the output of a chun
 
 ```{r, include=FALSE}
 # demand is the same across scenarios, load one (REF)
-pDemand <- getData(sns$CAP, "pDemand", merge = T, process = T
-                   # year = report_years
-                   ) |>
+# pDemand <- getData(sns$CAP, "pDemand", merge = T, process = T
+#                    # year = report_years
+#                    ) |>
+
+# patch to plot figures
+load("data/new_load_tmp.RData")
+pDemand <- new_loadcurve |>
+  mutate(
+    scenario = "CAP25",
+    name = "pDemand",
+    process = "DEMELC_BY",
+    comm = "ELC",
+    year = 2025,
+    value = GWh
+  ) |>
+  rename(
+    region = reg7,
+    slice = timeslice
+  )
+
+pDemand <- pDemand |>
   filter(year %in% report_years) |>
   mutate(
-    datetime = tsl2dtm(slice, tmz = "Asia/Kolkata", year = 2019), # @Varun: Confirm the year since it affects weekdays
+    datetime = tsl2dtm(slice, tmz = "Asia/Kolkata", year = 2024), 
     DATE = as.Date(datetime),
     HOUR = tsl2hour(slice),
     YDAY = tsl2yday(slice),

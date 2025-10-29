@@ -99,6 +99,7 @@ DEMELC_BY_2024 <- update(
   ))
 
 DEMELC_BY_2024@dem |> head()
+# save(new_loadcurve, file = "data/new_load_tmp.RData")
 
 ```
 
