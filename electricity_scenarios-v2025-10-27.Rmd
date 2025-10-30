@@ -94,12 +94,44 @@ DEMELC_BY_2024 <- update(
   desc = "Load curve 2024, source Niti Aayog",
   dem = data.frame(
     region = new_loadcurve$reg7, # reg7 is equal to reg5 when no offshores
+    # year = 2024, #  the same for all years
     slice = new_loadcurve$timeslice,
     dem = new_loadcurve$GWh
   ))
 
 DEMELC_BY_2024@dem |> head()
 # save(new_loadcurve, file = "data/new_load_tmp.RData")
+
+elc$DEMELC_BY@dem |> filter(slice == "d010_h01", region == "NORTH") 
+elc$DEMELC_2X@dem |> filter(slice == "d010_h01", region == "NORTH") 
+
+# assume 3x growth by 2050 from 2024 base year and 4x by 2070
+DEMELC_2X_2024 <- elc$DEMELC_2X
+
+dem_growth_2025 <- DEMELC_BY_2024@dem |> 
+  mutate(
+    year = 2025,
+    dem = 0. # growth component is zero in base year
+  )
+
+dem_growth_2050 <- DEMELC_BY_2024@dem |>
+  mutate(
+    year = 2050,
+    dem = 2 * dem # additional demand 2x by 2050 (total 3x)
+  )
+
+dem_growth_2070 <- DEMELC_BY_2024@dem |>
+  mutate(
+    year = 2070,
+    dem = 3 * dem # additional demand 3x by 2070 (total 4x)
+  )
+
+DEMELC_2X_2024 <- update(
+  DEMELC_2X_2024,
+  desc = "Demand growth 2025, 2050, 2070 from 2024 base year",
+  dem = rbindlist(list(dem_growth_2025, dem_growth_2050, dem_growth_2070))
+)
+
 
 ```
 
@@ -484,6 +516,7 @@ mod <- newModel(
     elc$EWIF_w_const, # wind generators with constraints on capacity
     # elc$EWIF_w_land, # wind generators with constraints on used surface area
     # elc$EBIO, # biomass generators
+    EBIO_2025, # biomass generators updated to 2025
     elc$repo_ccstechs, # CCS technologies
     # capacity (weather) factors
     elc$WSOL, # solar capacity factor
@@ -502,8 +535,10 @@ mod <- newModel(
     # elc$NO_NEW_WIND, # no new wind capacity
     # elc$NO_NEW_SOLAR, # no new solar capacity
     # demand
-    elc$DEMELC_BY, # electricity demand in the base year
-    elc$DEMELC_2X # electricity demand growth
+    # elc$DEMELC_BY, # electricity demand in the base year
+    # elc$DEMELC_2X # electricity demand growth
+    DEMELC_BY_2024, # electricity demand in the base year updated to 2024
+    DEMELC_2X_2024 # electricity demand growth updated to 2024
   )
 )
 ## Updating carbon policy to net zero by 2070
@@ -754,9 +789,11 @@ scen_REF <- interpolate(
 scen_REF <- write_sc(scen_REF)
 
 # Solving the scenario
-scen_REF <- solve_scenario(scen_REF, wait = F)
-# save(scen_REF, file = file.path(ideea_scenarios(), "scen_REF.RData"))
-# rm(scen_REF); gc()
+# scen_REF <- solve_scenario(scen_REF, wait = F)
+save(scen_REF, file = file.path(ideea_scenarios(), "scen_REF.RData"))
+rm(scen_REF); gc()
+stop()
+# 
 # (load(file.path(ideea_scenarios(), "scen_REF.RData")))
 
 # Reading the results
@@ -795,6 +832,8 @@ scen_CAP <- write_script(scen_CAP)
 # rm(scen_CAP); gc()
 scen_CAP <- solve_scenario(scen_CAP, wait = F)
 # installr::os.sleep()
+save(scen_CAP, file = file.path(ideea_scenarios(), "scen_CAP.RData"))
+# stop()
 
 # Reading the results
 # (load(file.path(ideea_scenarios(), "scen_CAP.RData")))

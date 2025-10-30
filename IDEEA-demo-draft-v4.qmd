@@ -167,27 +167,27 @@ Note: use `include=TRUE` or `include=FALSE` to show or mute the output of a chun
 
 ```{r, include=FALSE}
 # demand is the same across scenarios, load one (REF)
-# pDemand <- getData(sns$CAP, "pDemand", merge = T, process = T
-#                    # year = report_years
-#                    ) |>
+pDemand <- getData(sns$CAP, "pDemand", merge = T, process = T
+                   # year = report_years
+                   ) |>
 
 # patch to plot figures
-load("data/new_load_tmp.RData")
-pDemand <- new_loadcurve |>
-  mutate(
-    scenario = "CAP25",
-    name = "pDemand",
-    process = "DEMELC_BY",
-    comm = "ELC",
-    year = 2025,
-    value = GWh
-  ) |>
-  rename(
-    region = reg7,
-    slice = timeslice
-  )
+# load("data/new_load_tmp.RData")
+# pDemand <- new_loadcurve |>
+#   mutate(
+#     scenario = "CAP25",
+#     name = "pDemand",
+#     process = "DEMELC_BY",
+#     comm = "ELC",
+#     year = 2025,
+#     value = GWh
+#   ) |>
+#   rename(
+#     region = reg7,
+#     slice = timeslice
+#   )
 
-pDemand <- pDemand |>
+# pDemand <- pDemand |>
   filter(year %in% report_years) |>
   mutate(
     datetime = tsl2dtm(slice, tmz = "Asia/Kolkata", year = 2024), 
@@ -484,6 +484,7 @@ kableExtra::kable(head(table_data, 6), digits = 0)
 ```{r}
 vEmsFuelTot_CO2 |>
   # aggregate:
+  filter(year %in% report_years) |>
   group_by(scenario, year) |> 
   summarise(value = sum(value, na.rm = TRUE), .groups = "drop") |>
   # plot
@@ -523,7 +524,7 @@ ggplot(conv_emis) +
 
 ```
 
-## Total capacity
+## Total capacity, generation & storage (4h)
 
 ```{r}
 # adjust capacity of 1-hour storage:
@@ -563,6 +564,60 @@ ggplot(vCap_ELC) +
   labs(x = "", y = "GW") +
   theme_bw()
 ```
+
+## Solar and Wind vs. (official) Potential, GW 
+CAP scenario
+
+```{r}
+solar_wind_potential_r7 <- 
+  fread("data/solar_wind_potential_r35_r7.csv.gz") |>
+  group_by(reg7) |>
+  summarise(
+    ESOL = sum(`Solar Power Potential (in MW)`/1e3, na.rm = T),
+    EWIN = sum(`Wind Power Potential (in MW)`/1e3, na.rm = T),
+    .groups = "drop"
+  ) |>
+  rename(region = reg7) |>
+  filter(!is.na(region), region != "") |>
+  pivot_longer(cols = c(ESOL, EWIN), names_to = "process", 
+               values_to = "Potential_GW")
+
+
+vTechCap_SW <- getData(sns$CAP, name = "vTechCap", merge = T, 
+                        tech_ = "ESOL|EWIN|EWIF",
+                        digits = 1, drop.zeros = T, process = T) |>
+  drop_process_cluster() |> drop_process_vintage() |>
+  group_by(scenario, process, region, year) |>
+  summarise(value = sum(value), .groups = "drop") |>
+  add_process_label() |>
+  filter(year == max(year)) |>
+  left_join(solar_wind_potential_r7, by = c("region", "process"))
+  
+kableExtra::kable(
+  vTechCap_SW |> 
+    rename(Installed = value, Technology = process_label) |>
+    rename(Potential = Potential_GW) |>
+    select(region, Technology, Installed, Potential) |>
+    arrange(region, Technology),
+  digits = 1
+)
+
+```
+
+## Solar capacity vs. Potential (cont.)
+(dots = Official estimates of potential)
+```{r}
+ggplot(vTechCap_SW) +
+  geom_bar(aes(region, value, fill = process_label), stat = "identity") +
+  geom_point(aes(region, Potential_GW, fill = process_label), 
+             shape = 21, size = 5, colour = "yellow") +
+  facet_grid(process_label~scenario) +
+  scale_fill_viridis_d(option = "H", direction = -1, name = "Technology") +
+  labs(x = "", y = "GW") +
+  theme_bw()
+
+```
+
 
 ## Capacity in 2070, GW
 
@@ -664,7 +719,7 @@ all_slices <- sns$CAP@settings@calendar@timetable$slice
 
 # (very) quick plots to use
 # ?ideea_snapshot
-ideea_snapshot2(sns$REF, YEAR = 2070, SLICE = all_slices[1:24])
+ideea_snapshot2(sns[[1]], YEAR = 2070, SLICE = all_slices[1:24])
 
 ```
 

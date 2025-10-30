@@ -286,6 +286,21 @@ ggsave("images/load_curve_heatmap_2024-25.png", p, scale = 1.5, width = 10,
 
 ```
 
+
+## Solar & Wind potential
+```{r}
+solar_wind_potential <- readxl::read_excel(
+  "data/Solar and Wind Potential.xlsx", 
+  sheet = 1, 
+  range = "A3:C38", na = "N.A.") |>
+  as.data.table() 
+
+save(solar_wind_potential, file = "data/solar_wind_potential.RData")
+
+```
+
+
+
 ## Map states to reg32 and reg5
 ```{r, eval=FALSE}
 NITI_Aayog_states <- gen_capacity_2025 |> select(State) |> unique()
