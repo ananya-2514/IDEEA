@@ -1,0 +1,519 @@
+---
+title: "Iron and Steel sector"
+format: html
+---
+
+This document provides examples of how to represent key iron and steel production technologies in the `energyRt` package. The technological parameters are illustrative and should be refined with more specific data for accurate modeling.
+
+
+```{r setup, include = FALSE, echo=FALSE,warning=FALSE, message=FALSE}
+library(tidyverse)
+library(IDEEA)
+# library(energyRt.dev)
+```
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("https://www.steel.org/wp-content/uploads/2020/07/flowline1_540.gif")
+```
+
+
+## Blast Furnace & Basic Oxygen Furnace (BF-BOF)
+
+### Description
+The traditional integrated steelmaking route that produces steel from iron ore. Iron ore is reduced in a blast furnace using coke, producing hot metal (pig iron), which is then refined in a basic oxygen furnace.
+
+
+```{r}
+# Blast Furnace technology representation 
+BF <- newTechnology(
+  name = "BF",
+  desc = "Blast Furnace",
+  input = list(
+    comm = c("IRON_ORE", "COKE", "LIME", "SINTER", "SCRAP"),
+    group = c("i", NA, NA, NA, "i"),
+    unit = c("Mt", "PJ", "Mt", "Mt", "Mt"),
+    # share of the product to convert to energy
+    combustion = c(0, 1, 0, 0, 0) # check for COKE
+  ),
+  output = list(
+    comm = c("IRON"),
+    unit = c("Mt")
+  ),
+  aux = list(
+    acomm = c("BF_GAS", "SLAG"),
+    unit = c("PJ", "Mt")
+  ),
+  aeff = data.frame(
+    comm = c("IRON", "IRON"),
+    acomm = c("BF_GAS", "SLAG"),
+    cout2aout = c(3.25, 0.2) # GJ/PJ or Mt/Mt
+    
+  ),
+  ceff = data.frame(
+    comm = c("IRON_ORE", "COKE", "LIME", "SINTER", "SCRAP"),
+    cinp2use = c(NA, 9.30, 0, 1.34, NA),
+    cinp2ginp = c(1.2, NA, NA, NA, 0.155)
+  ),
+  invcost = list(
+    invcost = convert(273*20, "EUR/t", "cr.INR/Mt") # ???
+  ),
+  fixom = list(
+    fixom = convert(10, "EUR/t", "cr.INR/Mt") # ???
+  ),
+  varom = list(
+    varom = convert(2, "EUR/GJ", "cr.INR/PJ") # ???
+  ),
+  olife = list(
+    olife = 20 # years
+  )
+)
+
+draw(BF)
+
+```
+
+```{r}
+# Basic Oxygen Furnace technology representation 
+BOF <- newTechnology(
+  name = "BOF",
+  desc = "Basic Oxygen Furnace",
+  input = list(
+    comm = c("IRON", "SCRAP"),
+    group = c("i", "i"),
+    unit = c("Mt", "Mt")
+  ),
+  output = list(
+    comm = c("STEEL"),
+    unit = c("Mt")
+  ),
+  ceff = data.frame(
+    comm = c("IRON", "SCRAP"),
+    cinp2ginp = c(0.85, 0.15) # 85% hot metal from BF, 15% scrap
+  ),
+  invcost = list(
+    invcost = 120 # MUSD/Mt (Overnight Capital Cost - generic estimate)
+  ),
+  fixom = list(
+    fixom = 8 # MUSD/Mt (Fixed O&M - generic estimate)
+  ),
+  varom = list(
+    varom = 25 # MUSD/Mt (Variable O&M - generic estimate)
+  ),
+  olife = list(
+    olife = 30 # years
+  )
+)
+
+draw(BOF)
+
+```
+
+## Electric Arc Furnace (EAF)
+
+### Description
+Melts scrap steel or direct reduced iron (DRI) using electric energy. More flexible and typically has lower emissions than BF-BOF when using scrap.
+
+```{r}
+# Electric Arc Furnace
+EAF <- newTechnology(
+  name = "EAF",
+  desc = "Electric Arc Furnace",
+  input = list(
+    comm = c("SCRAP", "IRON"),
+    group = c("i", "i"),
+    unit = c("Mt", "Mt")
+    # share of the product to convert to energy
+    # combustion = c(0, 0)
+  ),
+  output = list(
+    comm = c("STEEL"),
+    unit = c("Mt")
+  ),
+  aux = list(
+    acomm = c("ELC", "O2", "CO2", "NOX", "SO2", "DUST"),
+    unit = c("PJ", "Mm³", "Mt", "Mt", "Mt", "Mt")
+  ),
+  aeff = data.frame(
+    comm = c("STEEL", "STEEL", "STEEL", "STEEL", "STEEL", "STEEL"),
+    acomm = c("ELC", "O2", "CO2", "NOX", "SO2", "DUST"),
+    cout2ainp = c(2.512, 0.01043, NA, NA, NA, NA), # ELC: 697.7 kWh/t = 2.512 GJ/t, O2: 10.43 Nm³/t
+    cout2aout = c(NA, NA, 0.058, 0.00018, 0.000077, 0.0003905) 
+    # CO2: 0.058 Mt/Mt
+    # NOX: 180 g/t = 0.00018 Mt/Mt (avg of 120-240)
+    # SO2: 77 g/t = 0.000077 Mt/Mt (avg of 24-130)
+    # DUST: 390.5 g/t = 0.0003905 Mt/Mt (avg of 1-780)
+  ),
+  ceff = data.frame(
+    comm = c("SCRAP", "IRON"),
+    # cinp2use = c(NA, NA),
+    cinp2ginp = c(0.5, 0.5) # 50% scrap, 50% iron
+  ),
+  invcost = list(
+    invcost = 80.96 # MUSD/Mt (Overnight Capital Cost)
+  ),
+  fixom = list(
+    fixom = convert(8, "EUR/t", "cr.INR/Mt") # Fixed O&M
+  ),
+  varom = list(
+    varom = 31.78 # MUSD/Mt (Variable O&M)
+  ),
+  olife = list(
+    olife = 25 # years, EAF typically has longer life than BF
+  )
+)
+
+draw(EAF)
+
+```
+
+## Direct Reduced Iron (DRI) + EAF
+
+### Description
+Iron ore is reduced using natural gas or coal-based reducing gases to produce DRI/sponge iron, which is then melted in an EAF.
+
+Key DRI technologies include:
+- Gas-based shaft furnaces (e.g., MIDREX, HYL)
+- Coal-based...
+- ...
+
+
+```{r}
+# Direct Reduced Iron (DRI) technology representation
+## Generic DRI using coal-based reduction
+DRI_COAL <- newTechnology(
+  name = "DRI_COAL",
+  desc = "Direct Reduced Iron (Coal-based)",
+  input = list(
+    comm = c("IRON_ORE", "COAL"),
+    # group = c("i", "i"),
+    unit = c("Mt", "PJ")
+  ),
+  output = list(
+    comm = c("IRON"),
+    unit = c("Mt")
+  ),
+  aux = list(
+    acomm = c("DRI_GAS", "SLAG"),
+    unit = c("PJ", "Mt")
+  ),
+  aeff = data.frame(
+    comm = c("IRON", "IRON"),
+    acomm = c("DRI_GAS", "SLAG"),
+    cout2aout = c(2.5, 0.15) # GJ/PJ or Mt/Mt
+  ),
+  ceff = data.frame(
+    comm = c("IRON_ORE", "COAL"),
+    cinp2use = c(NA, 8.0),
+    cinp2ginp = c(0.02, NA)
+  ),
+  invcost = list(
+    invcost = convert(150*20, "EUR/t", "cr.INR/Mt") # ???
+  ),
+  fixom = list(
+    fixom = convert(12, "EUR/t", "cr.INR/Mt") # ???
+  ),
+  varom = list(
+    varom = convert(3, "EUR/GJ", "cr.INR/PJ") # ???
+  ),
+  olife = list(
+    olife = 20 # years
+  )
+)
+
+draw(DRI_COAL)
+
+# Gas-based DRI
+DRI_GAS <- newTechnology(
+  name = "DRI_GAS",
+  desc = "Direct Reduced Iron (Gas-based)",
+  input = list(
+    comm = c("IRON_ORE", "GAS"),
+    # group = c("i", "i"),
+    unit = c("Mt", "PJ")
+  ),
+  output = list(
+    comm = c("IRON"),
+    unit = c("Mt")
+  ),
+  aux = list(
+    acomm = c("DRI_GAS", "SLAG"),
+    unit = c("PJ", "Mt")
+  ),
+  aeff = data.frame(
+    comm = c("IRON", "IRON"),
+    acomm = c("DRI_GAS", "SLAG"),
+    cout2aout = c(1.5, 0.1) # GJ/PJ or Mt/Mt
+  ),
+  ceff = data.frame(
+    comm = c("IRON_ORE", "GAS"),
+    cinp2use = c(NA, 5.0),
+    cinp2ginp = c(0.01, NA)
+  ),
+  invcost = list(
+    invcost = convert(200*20, "EUR/t", "cr.INR/Mt") # ???
+  ),
+  fixom = list(
+    fixom = convert(15, "EUR/t", "cr.INR/Mt") # ???
+  ),
+  varom = list(
+    varom = convert(4, "EUR/GJ", "cr.INR/PJ") # ???
+  ),
+  olife = list(
+    olife = 20 # years
+  )
+)
+draw(DRI_GAS)
+
+```
+
+
+## Hydrogen-Based Direct Reduction (H-DR) + EAF
+
+
+### Description
+Emerging technology using green hydrogen instead of natural gas to reduce iron ore, producing near-zero emissions when combined with renewable electricity.
+
+
+```{r}
+# Hydrogen-Based Direct Reduction (H-DR) technology representation
+DRI_H2 <- newTechnology(
+  name = "DRI_H2",
+  desc = "Direct Reduced Iron (Hydrogen-based)",
+  input = list(
+    comm = c("IRON_ORE", "H2"),
+    # group = c("i", "i"),
+    unit = c("Mt", "PJ")
+  ),
+  output = list(
+    comm = c("IRON"),
+    unit = c("Mt")
+  ),
+  aux = list(
+    acomm = c("DRI_GAS", "SLAG"),
+    unit = c("PJ", "Mt")
+  ),
+  aeff = data.frame(
+    comm = c("IRON", "IRON"),
+    acomm = c("DRI_GAS", "SLAG"),
+    cout2aout = c(0.5, 0.1) # GJ/PJ or Mt/Mt
+  ),
+  ceff = data.frame(
+    comm = c("IRON_ORE", "H2"),
+    cinp2use = c(NA, 3.0),
+    cinp2ginp = c(0.005, NA)
+  ),
+  invcost = list(
+    invcost = convert(300*20, "EUR/t", "cr.INR/Mt") # ???
+  ),
+  fixom = list(
+    fixom = convert(20, "EUR/t", "cr.INR/Mt") # ???
+  ),
+  varom = list(
+    varom = convert(5, "EUR/GJ", "cr.INR/PJ") # ???
+  ),
+  olife = list(
+    olife = 20 # years
+  )
+)
+draw(DRI_H2)
+
+```
+
+## Smelting Reduction (e.g., COREX, FINEX)
+
+### Description
+Alternative ironmaking processes that use non-coking coal and don't require a coke oven, producing hot metal similar to blast furnaces.
+
+## Carbon Capture and Storage (CCS) for Steel
+
+### Description
+Retrofitting existing BF-BOF or other routes with carbon capture technology to reduce emissions.
+
+## Iron and Steel Industry in India 
+(AI-crafted! For structure only, requires verification/update!)
+
+### Overview
+
+India is the **second-largest steel producer** in the world (after China) and has been experiencing rapid growth in steel production and consumption. The country has a unique mix of production technologies and faces specific challenges and opportunities in decarbonization.
+
+### Production Statistics (2023-2024)
+
+- **Total Crude Steel Production**: ~140 million tonnes per annum (Mt/a)
+- **Finished Steel Production**: ~120 Mt/a
+- **Steel Consumption**: ~125 Mt/a (per capita: ~85 kg)
+- **Growth Rate**: 8-10% annual growth in recent years
+- **Global Share**: ~11% of world steel production
+- **Export**: ~5-8 Mt/a
+- **Import**: ~4-6 Mt/a
+
+### Technology Mix
+
+India has a diverse mix of steelmaking technologies:
+
+#### Production Route Distribution
+- **BF-BOF (Integrated Plants)**: ~45-50% of production
+- **Electric Arc Furnace (EAF)**: ~40-45% of production
+- **Induction Furnace (IF)**: ~5-10% of production (mainly secondary producers)
+- **Other Routes**: <5%
+
+#### Unique Features
+- **High DRI Production**: India is the **largest DRI producer globally** (~40 Mt/a)
+  - Most DRI is coal-based (using rotary kilns and coal-based shaft furnaces)
+  - DRI is primarily used in EAFs and induction furnaces
+- **Coal-based DRI**: 95% of Indian DRI uses coal (vs. gas-based in other regions)
+- **Captive Power**: Many steel plants have captive coal power plants
+
+### Key Players
+
+#### Major Integrated Producers
+1. **Tata Steel**: ~20 Mt/a capacity (BF-BOF + EAF)
+2. **JSW Steel**: ~18 Mt/a capacity (BF-BOF)
+3. **SAIL (Steel Authority of India Limited)**: ~16 Mt/a capacity (BF-BOF)
+4. **RINL (Rashtriya Ispat Nigam Limited)**: ~7 Mt/a capacity (BF-BOF)
+5. **ArcelorMittal Nippon Steel India**: ~9 Mt/a capacity (BF-BOF)
+6. **JSW Steel**: Growing capacity through expansions
+
+#### Secondary Steel Sector
+- **1,000+ smaller producers** using EAFs and induction furnaces
+- Highly fragmented with varying efficiency levels
+- Important for regional employment and scrap recycling
+
+### Energy and Emissions Profile
+
+#### Energy Consumption
+- **Average Energy Intensity**: 25-30 GJ/t steel (crude steel)
+  - BF-BOF plants: 24-28 GJ/t
+  - EAF plants: 8-12 GJ/t
+  - Induction furnaces: 10-15 GJ/t
+- **Coal Dependency**: ~80% of energy from coal and coke
+- **Electricity Consumption**: 600-700 kWh/t steel (sector average)
+
+#### CO₂ Emissions
+- **Average CO₂ Intensity**: 2.4-2.6 t CO₂/t steel
+- **Total Sector Emissions**: ~300-350 Mt CO₂/year
+- **Share of National Emissions**: ~12-15% of India's total CO₂ emissions
+- **Range by Technology**:
+  - BF-BOF: 2.2-2.5 t CO₂/t steel
+  - Coal-based DRI-EAF: 1.8-2.2 t CO₂/t steel
+  - Scrap-based EAF: 0.8-1.2 t CO₂/t steel
+
+### Raw Material Availability
+
+#### Iron Ore
+- **Reserves**: 34 billion tonnes (4th largest globally)
+- **Annual Production**: ~250 Mt (80-90% Fe content)
+- **Major Regions**: Odisha, Jharkhand, Chhattisgarh, Karnataka
+- **Self-sufficiency**: Yes, with export potential
+
+#### Coal
+- **Coking Coal Reserves**: Limited high-quality reserves
+- **Coking Coal Import**: 50-60 Mt/year (~85% of requirement)
+- **Main Import Sources**: Australia, USA, Canada
+- **Non-coking Coal**: Abundant domestic availability
+
+#### Scrap
+- **Scrap Generation**: ~25-30 Mt/year
+- **Scrap Consumption**: ~30-35 Mt/year
+- **Scrap Import**: 5-7 Mt/year
+- **Challenge**: Limited scrap availability compared to production scale
+
+### Key Challenges
+
+1. **High Carbon Intensity**: Driven by coal dependency and older plants
+2. **Coking Coal Import Dependency**: Strategic and cost vulnerability
+3. **Limited Scrap Availability**: Constrains low-carbon EAF expansion
+4. **Technology Upgradation**: Many older, less efficient plants
+5. **Water Stress**: Many plants in water-scarce regions
+6. **Air Quality**: Local pollution concerns in industrial regions
+
+### Decarbonization Initiatives
+
+#### National Policy Framework
+- **National Steel Policy 2017**: Target of 300 Mt capacity by 2030
+- **Green Steel Mission**: Focus on hydrogen-based steelmaking
+- **Production Linked Incentive (PLI) Scheme**: Encourages specialty steel
+- **PAT (Perform, Achieve, Trade)**: Energy efficiency trading scheme
+
+#### Industry Initiatives
+1. **Tata Steel**
+   - Pilot H₂-based DRI projects
+   - Energy efficiency improvements
+   - Target: Carbon neutral by 2045
+
+2. **JSW Steel**
+   - Exploring carbon capture
+   - Renewable energy integration
+   - Scrap-based capacity expansion
+
+3. **SAIL**
+   - Modernization of older BF-BOF plants
+   - Energy efficiency programs
+   - Exploring green hydrogen
+
+#### Technology Pathways Being Explored
+- **Green Hydrogen DRI**: Several pilot projects announced
+- **Increased Scrap Utilization**: Limited by availability
+- **Biomass/Charcoal in BF**: Small-scale trials
+- **Carbon Capture**: Early-stage exploration
+- **Energy Efficiency**: Waste heat recovery, process optimization
+- **Renewable Energy**: Solar/wind for auxiliary power
+
+### Future Outlook (2030-2050)
+
+#### Capacity Targets
+- **2030**: 300 Mt/a capacity (National Steel Policy target)
+- **2047**: 500+ Mt/a capacity (projected for developed economy status)
+
+#### Technology Transition
+- **Near-term (2025-2030)**:
+  - Incremental efficiency improvements
+  - Scrap-EAF capacity additions
+  - First commercial-scale H₂-DRI pilots
+  - Renewable energy integration
+
+- **Medium-term (2030-2040)**:
+  - Scale-up of H₂-based steelmaking
+  - Increased scrap availability from consumption growth
+  - Some BF-BOF plants with CCS
+  - Coal-based DRI decline
+
+- **Long-term (2040-2050)**:
+  - Significant shift to H₂-DRI-EAF
+  - Higher scrap-based production
+  - Near-zero emission technologies
+  - Target: 50-70% emission reduction from 2020 levels
+
+### Data Sources for India to consider
+
+1. **Ministry of Steel, Government of India**
+   - Annual Reports and Statistics
+   - National Steel Policy documents
+
+2. **Joint Plant Committee (JPC)**
+   - Monthly production and consumption data
+   - Industry statistics
+
+3. **Indian Bureau of Mines**
+   - Iron ore production and reserves data
+
+4. **NITI Aayog**
+   - Energy efficiency and decarbonization roadmaps
+
+5. **BEE (Bureau of Energy Efficiency)**
+   - PAT scheme data
+   - Energy consumption norms
+
+6. **Industry Associations**
+   - Indian Steel Association (ISA)
+   - Sponge Iron Manufacturers Association (SIMA)
+
+7. **Company Reports**
+   - Annual reports and sustainability reports of major producers
+   - Investor presentations
+
+8. **International Sources**
+   - IEA India Energy Outlook
+   - World Steel Association country data
+   - TERI (The Energy and Resources Institute) studies
+   - Climate policy trackers
