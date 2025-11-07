@@ -390,10 +390,15 @@ pDemand |>
 ## Load curve in MH by month
 
 ```{r}
+load("data/load_curve_2025.RData")
 # get demand data from IDEEA internal database
-elc_MH <- ideea_data$load_2019_MWh |>
-  filter(reg36 %in% "MH") |>
-  group_by(reg36, MONTH, HOUR) |>
+# elc_MH <- ideea_data$load_2019_MWh |>
+#   filter(reg36 %in% "MH") |>
+# group_by(reg36, MONTH, HOUR) |>
+elc_MH <- load_curve_2025 |>
+  filter(grepl("Maharashtra", State)) |>
+  filter(year %in% 2024) |> # comment this line to plot 2024-2025
+  group_by(State, MONTH, HOUR) |>
   summarise(
     MWh = sum(MWh / length(unique(YDAY)), na.rm = T),
     .groups = "drop"
@@ -418,8 +423,11 @@ ggplot(elc_MH) +
 ## Load profile (heatmap) in MH
 
 ```{r}
-ideea_data$load_2019_MWh |>
-  filter(reg36 %in% "MH") |>
+# ideea_data$load_2019_MWh |>
+  # filter(reg36 %in% "MH") |>
+load_curve_2025 |>
+  filter(grepl("Maharashtra", State)) |>
+  filter(year %in% 2024) |> # comment this line to plot 2024-2025
   mutate(DATE = as.Date(datetime)) |>
   ggplot() +
   geom_tile(aes(DATE, HOUR, fill = MWh / 1e3)) +
