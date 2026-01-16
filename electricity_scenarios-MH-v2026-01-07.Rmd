@@ -68,6 +68,7 @@ summary(elc)
 
 ### Load curve
 ```{r}
+# update loadcurve and the 
 new_loadcurve <- fread("data/load_curve_2025_r32.csv.gz")
 new_loadcurve$datetime[1] # check timezone - csv files not always store TZ
 # update tz
@@ -105,32 +106,65 @@ DEMELC_BY_2024@dem |> head()
 elc$DEMELC_BY@dem |> filter(slice == "d010_h01", region == "MH") 
 elc$DEMELC_2X@dem |> filter(slice == "d010_h01", region == "MH") 
 
-# assume 3x growth by 2050 from 2024 base year and 4x by 2070
+source("data/yaml_to_df.R")
+
+growth_rate <- yaml_to_df("data/load_growth_rates_r32.yaml", 
+                          key_col = "region")
+
+# check if any regions are missing in the growth data
+unique(DEMELC_BY@dem$region)[
+  !unique(DEMELC_BY@dem$region) %in% growth_rate$region
+  ] # expect "character(0)"
+
+# Create growth rate 
 DEMELC_2X_2024 <- elc$DEMELC_2X
 
+# 
 dem_growth_2025 <- DEMELC_BY_2024@dem |> 
   mutate(
     year = 2025,
     dem = 0. # growth component is zero in base year
   )
 
+dem_growth_2030 <- DEMELC_BY_2024@dem |>
+  left_join(
+    select(growth_rate, region, Baseline)
+  ) |>
+  mutate(
+    year = 2030,
+    dem = dem * (1 + Baseline) ^ (year - 2025)
+  ) |>
+  select(-Baseline)
+
 dem_growth_2050 <- DEMELC_BY_2024@dem |>
+  left_join(
+    select(growth_rate, region, Baseline)
+  ) |>
   mutate(
     year = 2050,
-    dem = 2 * dem # additional demand 2x by 2050 (total 3x)
-  )
+    dem = dem * (1 + Baseline) ^ (year - 2025)
+  ) |>
+  select(-Baseline)
+
 
 dem_growth_2070 <- DEMELC_BY_2024@dem |>
+  left_join(
+    select(growth_rate, region, Baseline)
+  ) |>
   mutate(
     year = 2070,
-    dem = 3 * dem # additional demand 3x by 2070 (total 4x)
-  )
+    dem = dem * (1 + Baseline) ^ (year - 2025)
+  ) |>
+  select(-Baseline)
 
 DEMELC_2X_2024 <- update(
   DEMELC_2X_2024,
   desc = "Demand growth 2025, 2050, 2070 from 2024 base year",
-  dem = rbindlist(list(dem_growth_2025, dem_growth_2050, dem_growth_2070))
-)
+  dem = rbindlist(list(
+    dem_growth_2025, 
+    dem_growth_2030,
+    dem_growth_2050, 
+    dem_growth_2070)))
 
 DEMELC_2X_2024@dem |> 
   filter(region == "MH") |>
@@ -314,7 +348,6 @@ EBIO_2025@data$EBIO_2025@capacity
 EBIO_2025@data$EBIO_2020 <- NULL # replaced with 2025
 
 ```
-
 
 #### Solar
 ```{r}
@@ -815,7 +848,7 @@ The full-year scenario requires more computational resources and time. The gener
 scen_REF <- interpolate(
   mod,
   name = "REF_r32", 
-  horizon = ideea_modules$horizons$horizon_2020
+  horizon = ideea_modules$horizons$horizon_2070
   # horizon = horizon_2020_2070_by_15
 )
 
@@ -823,10 +856,10 @@ scen_REF <- interpolate(
 scen_REF <- write_sc(scen_REF)
 
 # Solving the scenario
-scen_REF <- solve_scenario(scen_REF, wait = F)
+scen_REF <- solve_scenario(scen_REF, wait = T)
 save(scen_REF, file = file.path(ideea_scenarios(), "scen_REF.RData"))
-rm(scen_REF); gc()
-stop()
+# rm(scen_REF); gc()
+# stop()
 # 
 # (load(file.path(ideea_scenarios(), "scen_REF.RData")))
 
@@ -837,19 +870,22 @@ summary(scen_REF)
 # (optional) saving the scenario on disk
 scen_REF <- save_scenario(scen_REF)
 
-```
-
-### CAP
-Similarly, the full-year scenario can be solved with the same solver and settings as **REF**.
-```{r, eval=FALSE}
+# <!-- ``` -->
+# 
+# ### CAP
+# Similarly, the full-year scenario can be solved with the same solver and settings as **REF**.
+# ```{r, eval=FALSE}
 # Interpolating the model parameters
 scen_CAP <- interpolate_model(
   mod, IMPELC, EXPELC,
-  name = "CAP25",
+  name = "CAP_r32",
   CO2_CAP_2070, # carbon emissions constraint
-  horizon = horizon_2020_2070_by_15
+  # horizon = horizon_2020_2070_by_15
+  # horizon = ideea_modules$horizons$horizon_2070
+  horizon = ideea_modules$horizons$horizon_2050
 )
 
+scen_CAP@path
 # Writing the model script and data
 scen_CAP <- write_script(scen_CAP)
   # replace default solver
@@ -866,7 +902,7 @@ scen_CAP <- write_script(scen_CAP)
 # rm(scen_CAP); gc()
 scen_CAP <- solve_scenario(scen_CAP, wait = F)
 # installr::os.sleep()
-save(scen_CAP, file = file.path(ideea_scenarios(), "scen_CAP.RData"))
+# save(scen_CAP, file = file.path(ideea_scenarios(), "scen_CAP.RData"))
 # stop()
 
 # Reading the results
@@ -882,6 +918,311 @@ summary(scen_CAP) # check RAM size
 # installr::os.sleep()
 
 ```
+
+## Collect installed capacities in 2070
+
+```{r}
+# CAP
+
+# Renewable generators and converters
+ren_cap <- getData(scen_CAP, "vTechCap", merge = T, process = T,
+                   drop.zeros = T, digits = 1, 
+                   tech_ = "^E(SOL|WIN|WIF|LC2|DC2)") |>
+  # drop small caps (mostly solver crumbs if Barrier is used)
+  mutate(value = floor(value)) |>
+  filter(value >= 10) |>
+  # pull(tech) |> unique()
+  as.data.table()
+  
+# Wind
+ren_cap_win <- ren_cap |>
+  filter(grepl("^EWI(N|F)", process)) |>
+  # drop process vintage
+  mutate(process = str_remove(process, "_20[0-9]+"))
+
+all_clusters <- str_extract(ren_cap_win$process, "CL[0-9]+") |> unique()
+EWIN_2070_target <- newRepository("EWIN_2070_target")
+for (cl in all_clusters) {
+  cat("Creating constraint for", cl)
+  
+  x <- filter(ren_cap_win, grepl(cl, process))
+  x0 <- x |> mutate(value = .01 * value, year = 2030)
+  x <- rbind(x0, x)
+  
+  # stop()
+  if (nrow(x) == 0) {
+    cat(" - empty, skipping\n")
+    next
+  }
+
+  all_names <- names(ideea_modules$electricity$reg32$EWIN_w_const)
+  
+  cl_names <- all_names[grepl(cl, all_names)]
+  cl_names <- cl_names[grepl("^EWIN", cl_names)]
+  constr_name <- paste0("CT_EWIN_", cl)
+
+  # ideea_modules$electricity$reg32$ESOL_w_const@data
+  CT_EWIN_CL_2070 <- newConstraint(
+    name = paste0("CT_EWIN_2070_", cl),
+    desc = "Target capacity constraint for wind techs by cluster",
+    eq = ">=",
+    for.each = list(
+      year = 2030:2070,
+      region = unique(x$region)
+    ),
+    variable = list(
+      variable = "vTechCap",
+      for.sum = list(
+        tech = names(cl_names), # list all technologies for the cluster
+        years = NULL
+      )
+    ),
+    rhs = data.frame(
+      year = x$year,
+      region = x$region,
+      rhs = x$value * .99 # give some slack
+    ),
+    defVal = 1e-20
+    # interpolation = "back.inter.forth"
+    # interpolation = "inter"
+  )
+  
+  EWIN_2070_target <- add(EWIN_2070_target, CT_EWIN_CL_2070);
+  rm(CT_EWIN_CL_2070)
+  cat(" - done\n")
+
+}
+
+# Solar
+ren_cap_sol <- ren_cap |>
+  filter(grepl("^ESOL", process)) |>
+  # drop process vintage
+  mutate(process = str_remove(process, "_20[0-9]+"))
+
+all_clusters <- str_extract(ren_cap_sol$process, "CL[0-9]+") |> unique()
+ESOL_2070_target <- newRepository("ESOL_2070_target")
+for (cl in all_clusters) {
+  cat("Creating constraint for", cl)
+  
+  x <- filter(ren_cap_sol, grepl(cl, process))
+  x0 <- x |> mutate(value = .01 * value, year = 2030)
+  x <- rbind(x0, x)  # stop()
+  if (nrow(x) == 0) {
+    cat(" - empty, skipping\n")
+    next
+  }
+  
+  all_names <- names(ideea_modules$electricity$reg32$ESOL_w_const)
+  
+  cl_names <- all_names[grepl(cl, all_names)]
+  cl_names <- cl_names[grepl("^ESOL", cl_names)]
+  constr_name <- paste0("CT_ESOL_", cl)
+  
+  # ideea_modules$electricity$reg32$ESOL_w_const@data
+  suppressWarnings({
+    CT_ESOL_CL_2070 <- newConstraint(
+      name = paste0("CT_ESOL_2070_", cl),
+      desc = "Target capacity constraint for solar techs by cluster",
+      eq = ">=",
+      for.each = list(
+        year = 2030:2070,
+        region = unique(x$region)
+      ),
+      variable = list(
+        variable = "vTechCap",
+        for.sum = list(
+          tech = names(cl_names), # list all technologies for the cluster
+          years = NULL
+        )
+      ),
+      rhs = data.frame(
+        year = x$year,
+        region = x$region,
+        rhs = x$value * .99 # give some slack
+      ),
+      defVal = 0,
+      interpolation = "inter"
+    )})
+  
+  ESOL_2070_target <- add(ESOL_2070_target, CT_ESOL_CL_2070);
+  rm(CT_ESOL_CL_2070)
+  cat(" - done\n")
+  
+}
+
+
+# Storage capacity
+stg_cap <- getData(scen_CAP, "vStorageCap", merge = T, process = T,
+                   drop.zeros = T, digits = 1 
+                   ) |> 
+  # drop small caps (mostly solver crumbs if Barrier is used)
+  mutate(value = floor(value)) |>
+  filter(value >= 10) |>
+  # pull(tech) |> unique()
+  as.data.table()
+
+stg_cap_novin <- stg_cap |>
+  filter(grepl("^STG_BTR", process)) |>
+  # drop process vintage
+  mutate(process = str_remove(process, "_20[0-9]+"))
+
+x <- stg_cap_novin
+x0 <- x |> mutate(value = .01 * value, year = 2030)
+x <- rbind(x0, x) 
+CT_STG_2070 <- newConstraint(
+  name = paste0("CT_STG_2070"),
+  desc = "Target capacity constraint for storage techs",
+  eq = ">=",
+  for.each = list(
+    year = 2030:2070,
+    region = unique(x$region)
+  ),
+  variable = list(
+    variable = "vStorageCap",
+    for.sum = list(
+      tech = names("STG_BTR"), # list all technologies for the cluster
+      years = NULL
+    )
+  ),
+  rhs = data.frame(
+    year = x$year,
+    region = x$region,
+    rhs = x$value * .99 # give some slack
+  ),
+  defVal = 1e-20,
+  interpolation = "inter"
+); rm(x)
+
+# Transmission capacity
+trd_cap <- getData(scen_CAP, "vTradeCap", merge = T, process = T,
+                   drop.zeros = T, digits = 1) |> 
+  # drop small caps (mostly solver crumbs if Barrier is used)
+  # mutate(value = floor(value)) |>
+  filter(value >= 1) |>
+  # pull(tech) |> unique()
+  as.data.table()
+
+x <- trd_cap
+x0 <- x |> mutate(value = .01 * value, year = 2030)
+x <- rbind(x0, x)  # stop()
+CT_TRADE_2070 <- newConstraint(
+  name = paste0("CT_TRADE_2070"),
+  desc = "Target capacity constraint for storage techs",
+  eq = ">=",
+  for.each = list(
+    year = 2030:2070,
+    trade = unique(x$process)
+  ),
+  variable = list(
+    variable = "vTradeCap",
+    for.sum = list(
+      years = NULL
+    )
+  ),
+  rhs = data.frame(
+    year = x$year,
+    trade = x$process,
+    rhs = x$value * .99 # give some slack
+  ),
+  defVal = 1e-20,
+  interpolation = "inter"
+); rm(x)
+
+# Converter stations
+x <- ren_cap |> filter(grepl("^EDC2ELC", process)) 
+x0 <- x |> mutate(value = .01 * value, year = 2030)
+x <- rbind(x0, x) 
+CT_EDC2ELC_2070 <- newConstraint(
+  name = paste0("CT_EDC2ELC_2070"),
+  desc = "Target capacity constraint for EDC2ELC techs",
+  eq = ">=",
+  for.each = list(
+    year = 2030:2070,
+    tech = unique(x$process)
+  ),
+  variable = list(
+    variable = "vTechCap",
+    for.sum = list(
+      # tech = names("TRADE_BTR"), # list all technologies for the cluster
+      years = NULL
+    )
+  ),
+  rhs = data.frame(
+    year = x$year,
+    tech = x$process,
+    region = x$region,
+    rhs = x$value * .99 # give some slack
+  ),
+  defVal = 1e-20,
+  interpolation = "inter"
+); rm(x)
+
+x <- ren_cap |> filter(grepl("^ELC2EDC", process)) 
+x0 <- x |> mutate(value = .01 * value, year = 2030)
+x <- rbind(x0, x) 
+CT_ELC2EDC_2070 <- newConstraint(
+  name = paste0("CT_ELC2EDC_2070"),
+  desc = "Target capacity constraint for ELC2EDC techs",
+  eq = ">=",
+  for.each = data.frame(
+    year = 2030:2070,
+    tech = unique(x$process)
+  ),
+  variable = list(
+    variable = "vTechCap",
+    for.sum = list(
+      # tech = names("TRADE_BTR"), # list all technologies for the cluster
+      years = NULL
+    )
+  ),
+  rhs = data.frame(
+    year = x$year,
+    tech = x$process,
+    region = x$region,
+    rhs = x$value * .99 # give some slack
+  ),
+  defVal = 1e-20,
+  interpolation = "inter"
+)
+
+
+```
+
+
+```{r}
+# Sub-setting and interpolating of the model parameters
+scen_CAP_sub <- interpolate(
+  mod,
+  name = "CAP_r32_sub", # indicating 'subset'
+  CO2_CAP_2070, # carbon emissions constraint
+  # EWIN_2070_target, ESOL_2070_target, 
+  CT_STG_2070,
+  CT_TRADE_2070, 
+  # CT_EDC2ELC_2070, CT_ELC2EDC_2070,
+  calendar = ideea_modules$calendars$calendar_d365_h24_subset_1day_per_month,
+  horizon = horizon_2025_2070_by_15
+)
+
+# Writing the model script and data
+scen_CAP_sub <- write_sc(
+  scen_CAP_sub
+  # solver = solver_options$gams_gdx_cplex_parallel
+  # solver = solver_options$julia_highs_barrier
+  # solver = julia_highs_crossover_on
+)
+
+# Solving the scenario
+scen_CAP_sub <- solve_scenario(scen_CAP_sub, wait = F)
+
+# Reading the results
+scen_CAP_sub <- read(scen_CAP_sub)
+summary(scen_CAP_sub)
+
+# (optional) saving the scenario on disk
+scen_CAP_sub <- save_scenario(scen_CAP_sub)
+```
+
+
 
 
 ## Results

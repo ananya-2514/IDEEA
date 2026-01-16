@@ -1,0 +1,169 @@
+DEFAULT:
+  name: Default growth rate (fallback for unidentified regions)
+  Baseline: 0.0482
+  Pessimistic: 0.045
+  Optimistic: 0.05
+UP:
+  name: Uttar Pradesh
+  Baseline: 0.0482
+  Pessimistic: 0.045
+  Optimistic: 0.05
+WB:
+  name: West Bengal
+  Baseline: 0.0482
+  Pessimistic: 0.045
+  Optimistic: 0.05
+APY:
+  name: Andhra Pradesh
+  Baseline: 0.0482
+  Pessimistic: 0.045 # !!! corrected from 0.05 - needs validation
+  Optimistic: 0.05
+AS:
+  name: Assam
+  Baseline: 0.0315
+  Pessimistic: 0.0371
+  Optimistic: 0.0466
+CT:
+  name: Chhattisgarh
+  Baseline: 0.0362
+  Pessimistic: 0.0683
+  Optimistic: 0.078
+# GJN:
+#   name: D. & N. Haveli
+#   Baseline: 5.0
+#   Pessimistic: 3.74
+#   Optimistic: 4.69
+GA:
+  name: Goa
+  Baseline: 0.0335
+  Pessimistic: 0.0297
+  Optimistic: 0.0359
+GJN:
+  name: Gujarat, Daman, Diu, Dadara, and Nagar
+  Baseline: 0.0409 # baseline is higher than optimistic - is it correct?
+  Pessimistic: 0.0318
+  Optimistic: 0.0381
+HP:
+  name: Himachal Pradesh
+  Baseline: 0.05
+  Pessimistic: 0.05
+  Optimistic: 0.05
+JH:
+  name: Jharkhand
+  Baseline: 0.0649
+  Pessimistic: 0.0342
+  Optimistic: 0.0403
+KLY:
+  name: Kerala and part of Puducherry
+  Baseline: 0.0408
+  Pessimistic: 0.043
+  Optimistic: 0.0516
+MH:
+  name: Maharashtra
+  Baseline: 0.0364
+  Pessimistic: 0.0479
+  Optimistic: 0.0565
+ML:
+  name: Meghalaya
+  Baseline: 0.0508
+  Pessimistic: 0.0435
+  Optimistic: 0.0521
+NL:
+  name: Nagaland
+  Baseline: 0.0556
+  Pessimistic: 0.0577
+  Optimistic: 0.0695
+  # name: Puducherry - in r32 model Puducherry is combined with neighbour regions
+  # Baseline: 0.0487
+  # Pessimistic: 0.0577
+  # Optimistic: 0.0694
+RJ:
+  name: Rajasthan
+  Baseline: 0.0566
+  Pessimistic: 0.0189
+  Optimistic: 0.0288
+TNY:
+  name: Tamil Nadu and part of Puducherry
+  Baseline: 0.0531
+  Pessimistic: 0.055
+  Optimistic: 0.0652
+TR:
+  name: Tripura
+  Baseline: 0.0612
+  Pessimistic: 0.0639
+  Optimistic: 0.0742
+UT:
+  name: Uttarakhand
+  Baseline: 0.0742
+  Pessimistic: 0.0498
+  Optimistic: 0.0498
+AR:
+  name: Arunachal Pradesh
+  Baseline: 0.05
+  Pessimistic: 0.0253
+  Optimistic: 0.0346
+BR:
+  name: Bihar
+  Baseline: 0.0767
+  Pessimistic: 0.0508
+  Optimistic: 0.0604
+# PBH:
+#   name: Punjab and Chandigarh
+#   Baseline: 0.0432
+#   Pessimistic: 0.0369
+#   Optimistic: 0.0462
+DL:
+  name: Delhi
+  Baseline: 0.06
+  Pessimistic: 0.0542
+  Optimistic: 0.0638
+HR:
+  name: Haryana
+  Baseline: 0.0596
+  Pessimistic: 0.0326
+  Optimistic: 0.0389
+JK:
+  name: Jammu and Kashmir
+  Baseline: 0.031
+  Pessimistic: 0.05
+  Optimistic: 0.05
+KA:
+  name: Karnataka
+  Baseline: 0.0452
+  Pessimistic: 0.043
+  Optimistic: 0.0516
+MP:
+  name: Madhya Pradesh
+  Baseline: 0.0356
+  Pessimistic: 0.0356
+  Optimistic: 0.0441
+MN:
+  name: Manipur
+  Baseline: 0.0249
+  Pessimistic: 0.0435
+  Optimistic: 0.0521
+MZ:
+  name: Mizoram
+  Baseline: 0.0701
+  Pessimistic: 0.0694
+  Optimistic: 0.0813
+OR:
+  name: Odisha
+  Baseline: 0.0603
+  Pessimistic: 0.0498
+  Optimistic: 0.0498
+PBH:
+  name: Punjab and Chandigarh
+  Baseline: 0.0429
+  Pessimistic: 0.0255
+  Optimistic: 0.0354
+SK:
+  name: Sikkim
+  Baseline: 0.0498
+  Pessimistic: 0.0447
+  Optimistic: 0.0548
+TG:
+  name: Telangana
+  Baseline: 0.0482
+  Pessimistic: 0.05
+  Optimistic: 0.05
