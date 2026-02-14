@@ -83,24 +83,26 @@ nreg <- 32
 regN <- glue("reg", nreg); regN_off <- paste0(regN, "_off")
 
 # set the range (or exact years) to report (the requested years must be in scenarios)
-report_years = c(2024:2050)
+report_years = c(2024, 2030:2050)
 
 # focus_region <- "MH" # reserved for state-level model(s) to show on figures
 
 ideea_sf <- get_ideea_map(nreg, offshore = T) |>
   mutate(region = reg32_off, .before = 1)
 
+ideea_MH_sf <- ideea_sf |> filter(region %in% c("MH", "MH_off"))
+
 # load scenarios: comment/uncomment lines with scenario-names 
 scen_to_load <- c(
   # "CAP_r32_sub_IDEEA_ELC_reg32_d365_h24_subset_1day_per_month_Y2025_2050_by_5",
   # "REF_r32_sub_IDEEA_ELC_reg32_d365_h24_subset_1day_per_month_Y2025_2050_by_5"
   "REF_r32_IDEEA_ELC_reg32_d365_h24_Y2050",
-  "REF_r32_IDEEA_ELC_reg32_d365_h24_Y2070",
+  # "REF_r32_IDEEA_ELC_reg32_d365_h24_Y2070",
   "CAP_r32_IDEEA_ELC_reg32_d365_h24_Y2050",
-  "CAP_r32_IDEEA_ELC_reg32_d365_h24_Y2070",
+  # "CAP_r32_IDEEA_ELC_reg32_d365_h24_Y2070",
   # MH scenarios
-  "REF_MH_IDEEA_ELC_MH_d365_h24_Y2024_2050_by_5",
-  "CAP_MH_IDEEA_ELC_MH_d365_h24_Y2024_2050_by_5"
+  "REF_MH_v2_IDEEA_ELC_MH_d365_h24_Y2024_2050_by_5",
+  "CAP_MH_v2_IDEEA_ELC_MH_d365_h24_Y2024_2050_by_5"
 )
 
 for (s in scen_to_load) {
@@ -111,14 +113,14 @@ ls(envir = .scen)
 # combine them in a named list for comparison
 sns_r32 <- list(
   REF_2050 = .scen$REF_r32_2050,
-  REF_2070 = .scen$REF_r32,
-  CAP_2050 = .scen$CAP_r32_2050,
-  CAP_2070 = .scen$CAP_r32_2070
+  # REF_2070 = .scen$REF_r32,
+  CAP_2050 = .scen$CAP_r32_2050
+  # CAP_2070 = .scen$CAP_r32_2070
 )
 
 sns_MH <- list(
-  REF_MH = .scen$REF_MH,
-  CAP_MH = .scen$CAP_MH
+  REF_MH = .scen$REF_MH_v2,
+  CAP_MH = .scen$CAP_MH_v2
 )
 
 sns_all <- c(sns_r32, sns_MH)
@@ -739,7 +741,7 @@ ideea_snapshot2(sns_MH$REF_MH, YEAR = 2050, SLICE = all_slices[1:24])
 ## Generation profile: CAP scenario
 
 ```{r}
-ideea_snapshot2(sns$CAP_MH, YEAR = 2050, 
+ideea_snapshot2(sns_MH$CAP_MH, YEAR = 2050, 
                 # region = "MH",
                 SLICE = all_slices[1:24])
 ideea_snapshot2(sns$CAP_2070, YEAR = 2070, SLICE = all_slices[1:24])
@@ -752,6 +754,34 @@ getData(sns$CAP_2050,
 
 ```
 
+
+```{r}
+gen_data <- ideea_snapshot2(
+  scen = sns_MH$CAP_MH, 
+  YEAR = report_years, 
+  SLICE = all_slices,
+  return_data = TRUE)
+
+ gen_data |>
+   mutate(
+     tech_type = if_else(name == "vStorageInp", "Battery-In", tech_type),
+     tech_type = if_else(name == "vStorageOut", "Battery-Out", tech_type)
+   ) |>
+   group_by(scenario, tech_type, year) |>
+   summarise(value = sum(value), .groups = "keep") |>
+   ggplot() +
+   # geom_area(aes(datetime, value, fill = tech_type)) +
+   geom_col(
+     aes(as.factor(year), value / 1e3, fill = tech_type),
+     position = position_stack(reverse = F)) +
+   scale_fill_viridis_d(option = "H", direction = -1, name = "Process") +
+   theme_bw() +
+   labs(x = "", y = "TWh / year")
+
+```
+
+
+
 ## Solar installations by cluster and year
 
 ```{r}
@@ -762,15 +792,36 @@ add_cluster_column <- function(x, col_name = "process") {
   )
 }
 
-ideea_sol_cl_sf <- get_ideea_cl_sf("sol", nreg = nreg, tol = .05) 
+ideea_sol_cl_sf <- get_ideea_cl_sf("sol", nreg = nreg, tol = .01) 
 
-vTechCap <- getData(sns,
+vTechCap <- getData(sns_r32,
+  name = "vTechCap", tech_ = "^E", process = T,
+  merge = T, digits = 3, drop.zeros = T
+)
+
+vTechCap_MH <- getData(sns_MH,
   name = "vTechCap", tech_ = "^E", process = T,
   merge = T, digits = 3, drop.zeros = T
 )
 
 vTechCap_ESOL_sf <-
   vTechCap |>
+  filter(region %in% c("MH")) |>
+  filter(year %in% report_years) |>
+  filter(grepl("ESOL", process)) |> # select solar techs
+  add_cluster_column() |> # add cluster number
+  # add shapes for every cluster
+  left_join(ideea_sol_cl_sf,
+    by = c(region = regN_off, cluster = "cluster"),
+    relationship = "many-to-many"
+  ) |>
+  rename(GW = value) |>
+  filter(!is.na(GW), GW > 0) |>
+  # filter(year %in% c(2025, 2035, 2060)) |>
+  st_as_sf() # force to treat 'geometry' column as shape-data
+
+vTechCap_ESOL_MH_sf <- 
+  vTechCap_MH |>
   filter(year %in% report_years) |>
   filter(grepl("ESOL", process)) |> # select solar techs
   add_cluster_column() |> # add cluster number
@@ -785,23 +836,39 @@ vTechCap_ESOL_sf <-
   st_as_sf() # force to treat 'geometry' column as shape-data
 
 ggplot() +
-  geom_sf(data = ideea_sf) +
+  geom_sf(data = ideea_MH_sf) +
   geom_sf(aes(fill = GW), data = vTechCap_ESOL_sf, color = NA, na.rm = T) +
+  # scale_fill_viridis_c(option = "H") +
+  scale_fill_viridis_c(option = "C") +
+  facet_grid(year~scenario) +
+  theme_ideea_map()
+
+```
+
+
+```{r}
+
+ggplot() +
+  geom_sf(data = ideea_MH_sf) +
+  geom_sf(aes(fill = GW), data = vTechCap_ESOL_MH_sf, color = NA, na.rm = T) +
   # scale_fill_viridis_c(option = "H") +
   scale_fill_viridis_c(option = "C") +
   facet_grid(scenario~year) +
   theme_ideea_map()
-
+ggsave(filename = "images/solar_installations_by_cluster_MH.png", 
+       width = 10, height = 5, scale = 1)
 
 ```
+
 
 ## Wind installations by cluster and year
 
 ```{r}
-ideea_win_cl_sf <- get_ideea_cl_sf("win", nreg = nreg, tol = .1) 
+ideea_win_cl_sf <- get_ideea_cl_sf("win", nreg = nreg, tol = .01) 
 vTechCap_EWIN_sf <-
   vTechCap |>
   filter(year %in% report_years) |>  
+  filter(region %in% "MH") |>
   filter(grepl("EWIN", process)) |> # select solar techs
   add_cluster_column() |> # add cluster number
   # add shapes for every cluster
@@ -814,15 +881,46 @@ vTechCap_EWIN_sf <-
   # filter(year %in% c(2025, 2035, 2060)) |>
   st_as_sf() # force to treat 'geometry' column as shape-data
 
+vTechCap_EWIN_MH_sf <-
+  vTechCap_MH |>
+  filter(year %in% report_years) |>  
+  # filter(region %in% "MH") |>
+  filter(grepl("EWIN", process)) |> # select solar techs
+  add_cluster_column() |> # add cluster number
+  # add shapes for every cluster
+  left_join(ideea_win_cl_sf,
+    by = c(region = regN_off, cluster = "cluster"),
+    relationship = "many-to-many"
+  ) |>
+  rename(GW = value) |>
+  filter(!is.na(GW), GW > 0) |>
+  # filter(year %in% c(2025, 2035, 2060)) |>
+  st_as_sf() #
+
 ggplot() +
-  geom_sf(data = ideea_sf) +
+  # geom_sf(data = ideea_sf) +
+  geom_sf(data = ideea_MH_sf) +
   geom_sf(aes(fill = GW), data = vTechCap_EWIN_sf, color = NA, na.rm = T) +
+  scale_fill_viridis_c(option = "D") +
+  # scale_fill_viridis_c(option = "D", transform = "log10") +
+  facet_grid(year~scenario) +
+  theme_ideea_map()
+
+```
+
+```{r}
+ggplot() +
+  # geom_sf(data = ideea_sf) +
+  geom_sf(data = ideea_MH_sf) +
+  geom_sf(aes(fill = GW), data = vTechCap_EWIN_MH_sf, color = NA, na.rm = T) +
   scale_fill_viridis_c(option = "D") +
   # scale_fill_viridis_c(option = "D", transform = "log10") +
   facet_grid(scenario~year) +
   theme_ideea_map()
-
+ggsave(filename = "images/wind_installations_by_cluster_MH.png", 
+       width = 10, height = 5, scale = 1)
 ```
+
 
 ## Storage energy capacity, GWh
 
