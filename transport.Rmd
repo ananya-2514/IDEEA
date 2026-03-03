@@ -17,6 +17,7 @@ knitr::opts_chunk$set(
 ```{r setup, warning=FALSE, message=FALSE}
 library(IDEEA)
 library(data.table)
+source("R/ideea_report.r")
 # library(energyRt.dev)
 ```
 
@@ -56,8 +57,57 @@ LDV or cars are modeled to deliver two types of transportation services, based o
 ```{r}
 GSL <- newCommodity(
   name = "GSL", 
+  desc = "Gasoline (petrol)",
   unit = "PJ", 
+  emis = data.frame(
+    comm = "CO2",
+    emis = 69.3 # tCO2/PJ, source: https://www.eia.gov/environment/emissions/co2_vol_mass.php
+  ),
   timeframe = "ANNUAL")
+
+DSL <- newCommodity(
+  name = "DSL", 
+  desc = "Diesel",
+  unit = "PJ", 
+  emis = data.frame(
+    comm = "CO2",
+    emis = 74.1 # tCO2/PJ, source: https://www.eia.gov/environment/emissions/co2_vol_mass.php
+  ),
+  timeframe = "ANNUAL")
+
+BIO <- newCommodity(
+  name = "BIO",
+  desc = "Biofuels (ethanol, biodiesel)",
+  unit = "PJ",
+  timeframe = "ANNUAL",
+  emis = data.frame(
+    comm = "CO2",
+    emis = 0 # tCO2/PJ, assuming carbon neutrality of biofuels
+  )
+)
+
+ELCPJ <- newCommodity(
+  name = "ELCPJ",
+  unit = "PJ",
+  timeframe = "ANNUAL"
+)
+
+# Blended fuel of 10% Ethanol and 90% gasoline
+GSL10 <- newCommodity(
+  name = "GSL10",
+  desc = "Blended fuel of 10% Ethanol and 90% gasoline",
+  unit = "PJ",
+  timeframe = "ANNUAL",
+  emis = data.frame(
+    comm = "CO2",
+    emis = 0.9 * 69.3 # tCO2/PJ, assuming 10% reduction in emissions compared to pure gasoline
+  )
+)
+
+# Emissions
+PM <- ideea_modules$electricity$reg5$repo_comm@data$PM
+CO2 <- ideea_modules$electricity$reg5$repo_comm@data$CO2
+
 ```
 
 ### Transport services
@@ -66,30 +116,218 @@ PLDVHWY <- newCommodity(
   name = "PLDVHWY", 
   desc = "LDV passengers transportation on highway",
   unit = "MPKm", # "million passenger * km", 
-  timeframe = "YDAY")
+  timeframe = "ANNUAL")
 
 PLDVCTY <- newCommodity(
   name = "PLDVCTY", 
   desc = "LDV passengers transportation in city",
   unit = "MPKm", # "million passenger * km", 
-  timeframe = "YDAY")
+  timeframe = "ANNUAL")
 ```
 
-### Infrastructure
+
+### Demand
 ```{r}
-GSTATION <- newCommodity(
-  name = "GSTATION", 
-  desc = "Gas station",
+DEM_PLDVHWY <- newDemand(
+  name = "DEM_PLDVHWY",
+  desc = "Demand for LDV passengers transportation on highway",
+  commodity = "PLDVHWY",
+  unit = "MPKm", # "million passenger * km", 
+  region = "IND",
+  dem = data.frame(
+    region = "IND",
+    year = 2024,
+    dem = 1000 # million passenger * km a year
+  )
+)
+
+DEM_PLDVCTY <- newDemand(
+  name = "DEM_PLDVCTY",
+  desc = "Demand for LDV passengers transportation in city",
+  commodity = "PLDVCTY",
+  unit = "MPKm", # "million passenger * km", 
+  region = "IND",
+  dem = data.frame(
+    region = "IND",
+    year = 2024,
+    dem = 9000 # million passenger * km a year
+  )
+)
+
+```
+
+### Supply
+
+```{r}
+SUP_GSL <- newSupply(
+  name = "SUP_GSL",
+  desc = "Supply of gasoline (petrol)",
+  commodity = "GSL",
+  region = "IND",
+  availability = data.frame(
+    region = "IND",
+    year = 2024,
+    cost = 50 # MUSD/PJ
+  )
+)
+
+SUP_DSL <- newSupply(
+  name = "SUP_DSL",
+  desc = "Supply of diesel",
+  commodity = "DSL",
+  region = "IND",
+  availability = data.frame(
+    region = "IND",
+    year = 2024,
+    cost = 40 # MUSD/PJ
+  )
+)
+
+SUP_BIO <- newSupply(
+  name = "SUP_BIO",
+  desc = "Supply of biofuels (ethanol, biodiesel)",
+  commodity = "BIO",
+  region = "IND",
+  availability = data.frame(
+    region = "IND",
+    year = 2024,
+    cost = 70 # MUSD/PJ
+  )
+)
+
+SUP_ELCPJ <- newSupply(
+  name = "SUP_ELCPJ",
+  desc = "Supply of electricity for transportation",
+  commodity = "ELCPJ",
+  region = "IND",
+  availability = data.frame(
+    region = "IND",
+    year = 2024,
+    cost = 30 # MUSD/PJ
+  )
+)
+
+SUP_GSL10 <- newSupply(
+  name = "SUP_GSL10",
+  desc = "Supply of blended fuel of 10% Ethanol and 90% gasoline",
+  commodity = "GSL10",
+  region = "IND",
+  availability = data.frame(
+    region = "IND",
+    year = 2024,
+    cost = 60 # MUSD/PJ
+  )
+)
+
+
+```
+
+
+### Infrastructure
+
+Q: Do we have a data on number of fuel stations, gasoline and diesel sales?
+
+#### Services
+
+Refuel infrastructure services by type, modeled as commodities.
+
+```{r}
+PETRO_REFUEL <- newCommodity(
+  name = "PETRO_REFUEL", 
+  desc = "Petrol refueling station services, gasoline and disel",
   unit = "PJ", # number of cars to fuel a year
   timeframe = "ANNUAL")
 
-CHARGEST <- newCommodity(
-  name = "CHARGEST", 
-  desc = "Electric car charing station",
+CNG_REFUEL <- newCommodity(
+  name = "CNG_REFUEL", 
+  desc = "Compressed Natural Gas (CNG) refueling station services",
+  unit = "PJ", # number of cars to fuel a year
+  timeframe = "ANNUAL")
+
+LPG_REFUEL <- newCommodity(
+  name = "LPG_REFUEL", 
+  desc = "LPG station",
+  unit = "PJ", # number of cars to fuel a year
+  timeframe = "ANNUAL")
+
+EV_CHARGING <- newCommodity(
+  name = "EV_CHARGING", 
+  desc = "Electric car charing station services",
   unit = "GWh", # number of cars to fuel a year
   timeframe = "ANNUAL")
 
 ```
+
+
+#### Capacity
+
+Refuel stations by type (Gas pumps, EV chargers, CNG and LPG stations) can be modeled as technology or supply objects. In case of technology, model will optimize required capacity of every service based on costs and technological parameters. In the simplest way, refueling services can be modeled as supply objects.
+```{r}
+# Supply case
+SUP_PETRO_REFUEL <- newSupply(
+  name = "SUP_PETRO_REFUEL",
+  desc = "Petrol refueling station services, gasoline and disel",
+  commodity = "PETRO_REFUEL",
+  # unit = ... # either "PJ" or "1000 cars to fuel a year"
+  availability = data.frame(
+    # region = NA,
+    year = 2024,
+    # ava.up = 1000 # should correspond to the unit
+    cost = 10 # MUSD/PJ
+  )
+  # region = NA_character_
+)
+
+SUP_CNG_REFUEL <- newSupply(
+  name = "SUP_CNG_REFUEL",
+  desc = "Compressed Natural Gas (CNG) refueling station services",
+  commodity = "CNG_REFUEL",
+  region = NA_character_,
+  availability = data.frame(
+    # region = NA,
+    year = 2024,
+    cost = 15 # MUSD/PJ
+  )
+)
+
+SUP_LPG_REFUEL <- newSupply(
+  name = "SUP_LPG_REFUEL",
+  desc = "LPG station",
+  commodity = "LPG_REFUEL",
+  region = NA_character_,
+  availability = data.frame(
+    # region = NA,
+    year = 2024,
+    cost = 12 # MUSD/PJ
+  )
+)
+
+SUP_EV_CHARGING <- newSupply(
+  name = "SUP_EV_CHARGING",
+  desc = "Electric car charing station services",
+  commodity = "EV_CHARGING",
+  region = NA_character_,
+  availability = data.frame(
+    # region = NA_character_,
+    year = 2024,
+    cost = 20 # MUSD/GWh
+  )
+)
+
+energyRt.dev::draw(SUP_PETRO_REFUEL)
+
+```
+
+
+
+### Dual fuel cars
+- Blended fuel 
+- Dual fuel cars
+```{r}
+
+
+```
+
 
 
 ### Gasoline cars
@@ -124,8 +362,8 @@ LDVG <- newTechnology(
   olife = list(olife = 10),
   capacity = list(
     region = NA,
-    year = 2022,
-    stock = 500
+    year = 2022
+    # stock = 500
   ),
   invcost = list(
     invcost = 15 # 15000 [USD/car] * 1000 [cars] / 1e6 => MUSD/1000 cars
@@ -137,38 +375,194 @@ LDVG <- newTechnology(
   #   varom = ... # could be "tires, oil change" 
   # )
   aux = list(
-    acomm = c("GSTATION", "PM"), 
+    acomm = c("PETRO_REFUEL", "PM"), 
     unit = c("PJ", "kt")
   ), # N cars fueled a year
   aeff = list(
-    acomm = c("GSTATION", "PM"),
+    acomm = c("PETRO_REFUEL", "PM"),
     cap2ainp = c(1, NA), # estimate number of trips to gas-station a year
     act2aout = c(NA, .01) # find emissions data per km
     )
   )
 
-energyRt::draw(LDVG)
+energyRt.dev::draw(LDVG)
 draw(LDVG)
+# ideea_report(LDVG, type = "vehicle", image_file = "images/LDV-gpt.png",
+#              file = "tmp/LDVG_report_v5.pdf")
 
 ```
 
+
 ### Diesel cars
 ```{r}
+
+
 
 ```
 
 ### Hybrid cars
 ```{r}
+LDV_HYB <- newTechnology(
+  name = "LDV_HYB",
+  desc = "Hybrid Light Duty Vehicles",
+  input = data.frame(
+    comm = c("GSL"),
+    unit = "PJ", # for simplicity and electrification scenarios, normally "PJ"
+    group = "i"
+  ),
+  output = data.frame(
+    comm = c("PLDVHWY",  # passenger * km, highway
+             "PLDVCTY"), # passenger * km, city
+    unit = "MPKm", # million passenger * km
+    group = "o" # a number or string, "o" = output
+  ),
+  units = list(
+    capacity = "1000 Vehicles",
+    activity = "million km, city", # measured in one of the output commodities
+    costs = "MUSD"
+  ),
+  cap2act = 10, # 10000 km per car a year => 10000 * 1000 / 1e6
+  ceff = data.frame(
+    comm = c("GSL", "PLDVHWY", "PLDVCTY"),
+    share.up = c(NA, .4, .8),
+    cact2cout = c(NA, 2, 3) # passengers per
+  ),
+  olife = list(olife = 10),
+  capacity = list(
+    region = NA,
+    year = 2022
+    # stock = 500
+  ),
+  invcost = list(
+    invcost = 20 # MUSD/1000 cars
+  ),
+  fixom = list(
+    fixom = .5 # repairs a year, taxes and fees, tires, oil change, parking etc.
+  ),
+  aux = list(
+    acomm = c("PETRO_REFUEL", "PM"), 
+    unit = c("PJ", "kt")
+  ), # N cars fueled a year
+  aeff = list(
+    acomm = c("PETRO_REFUEL", "PM"),
+    cap2ainp = c(1, NA), # estimate number of trips to gas-station a year
+    act2aout = c(NA, .01) # find emissions data per km
+  )
+)
+
+energyRt.dev::draw(LDV_HYB)
+
 
 ```
 
 ### Plugged in hybrid cars
 ```{r}
+LDV_PHEV <- newTechnology(
+  name = "LDV_PHEV",
+  desc = "Plugged in Hybrid Light Duty Vehicles",
+  input = data.frame(
+    comm = c("GSL", "ELCPJ"),
+    unit = "PJ", # for simplicity and electrification scenarios, normally "PJ"
+    group = "i"
+  ),
+  output = data.frame(
+    comm = c("PLDVHWY",  # passenger * km, highway
+             "PLDVCTY"), # passenger * km, city
+    unit = "MPKm", # million passenger * km
+    group = "o" # a number or string, "o" = output
+  ),
+  units = list(
+    capacity = "1000 Vehicles",
+    activity = "million km, city", # measured in one of the output commodities
+    costs = "MUSD"
+  ),
+  cap2act = 10, # 10000 km per car a year =>
+  ceff = data.frame(
+    comm = c("GSL", "ELCPJ", "PLDVHWY", "PLDVCTY"),
+    share.up = c(NA, NA, .4, .8),
+    cact2cout = c(NA, NA, 2, 3) # passengers per
+  ),
+  olife = list(olife = 10),
+  capacity = list(
+    region = NA,
+    year = 2022
+    # stock = 100
+  ),
+  invcost = list(
+    invcost = 25 # MUSD/1000 cars
+  ),
+  fixom = list(
+    fixom = .5 # repairs a year, taxes and fees, tires, oil change
+  ),
+  aux = list(
+    acomm = c("PETRO_REFUEL", "EV_CHARGING", "PM"),
+    unit = c("PJ", "PJ", "kt")
+  ), # N cars fueled a year
+  aeff = list(
+    acomm = c("PETRO_REFUEL", "EV_CHARGING", "PM"),
+    comm = c(NA, "ELCPJ", NA),
+    cap2ainp = c(1, NA, NA), # estimate number of trips to gas
+    cinp2ainp = c(NA, 1, NA), # estimate number of trips to gas
+    act2aout = c(NA, NA, .01) # find emissions data per km
+  )
+)
+
+energyRt.dev::draw(LDV_PHEV)
+
 
 ```
 
 ### Electric cars
 ```{r}
+LDV_EV <- newTechnology(
+  name = "LDV_EV",
+  desc = "Electric Light Duty Vehicles",
+  input = data.frame(
+    comm = c("ELCPJ"),
+    unit = "PJ", # for simplicity and electrification scenarios, normally "PJ"
+    group = "i"
+  ),
+  output = data.frame(
+    comm = c("PLDVHWY",  # passenger * km, highway
+             "PLDVCTY"), # passenger * km, city
+    unit = "MPKm", # million passenger * km
+    group = "o" # a number or string, "o" = output
+  ),
+  units = list(
+    capacity = "1000 Vehicles",
+    activity = "million km, city", # measured in one of the output commodities
+    costs = "MUSD"
+  ),
+  cap2act = 10, # 10000 km per car a year =>
+  ceff = data.frame(
+    comm = c("ELCPJ", "PLDVHWY", "PLDVCTY"),
+    share.up = c(NA, .4, .8),
+    cact2cout = c(NA, 2, 3) # passengers per
+  ),
+  olife = list(olife = 10),
+  capacity = list(
+    region = NA,
+    year = 2022
+    # stock = 100
+  ),
+  invcost = list(
+    invcost = 30 # MUSD/1000 cars
+  ),
+  fixom = list(
+    fixom = .5 # repairs a year, taxes and fees, tires, oil change
+  ),
+  aux = list(
+    acomm = c("EV_CHARGING", "PM"),
+    unit = c("GWh", "kt")
+  ), # N cars fueled a year
+  aeff = list(
+    acomm = c("EV_CHARGING", "PM"),
+    cap2ainp = c(1, NA), # estimate number of trips to gas-station a year
+    act2aout = c(NA, .01) # find emissions data per km
+  )
+)
+
+energyRt.dev::draw(LDV_EV)
 
 ```
 
@@ -176,6 +570,143 @@ draw(LDVG)
 ```{r}
 
 ```
+
+### Model
+```{r}
+repo_LDV <- newRepository(
+  name = "repo_LDV",
+  desc = "Light Duty Vehicles (LDV) transportation services",
+  # commodities - final demand
+  PLDVHWY, PLDVCTY,
+  # commodities - fuels
+  GSL, DSL, BIO, ELCPJ, GSL10,
+  # commodities - emissions
+  PM, CO2,
+  # commodities - refuel services
+  PETRO_REFUEL, 
+  CNG_REFUEL, LPG_REFUEL, EV_CHARGING,
+  # Supplies - fuels
+  SUP_GSL, SUP_DSL, SUP_BIO, SUP_ELCPJ, SUP_GSL10,
+  # supply of refuel services
+  SUP_PETRO_REFUEL, 
+  SUP_CNG_REFUEL, SUP_LPG_REFUEL, SUP_EV_CHARGING,
+  # technologies
+  LDVG, 
+  LDV_HYB, LDV_PHEV, LDV_EV,
+  # demand
+  DEM_PLDVHWY,
+  DEM_PLDVCTY
+)
+
+ldv_model <- newModel(
+  name = "ldv_model",
+  desc = "Light Duty Vehicles (LDV) transportation services model",
+  data = repo_LDV,
+  region = "IND",
+  debug = data.frame(
+    # comm = c("GSL", "BIO", "PLDVHWY", "PLDVCTY"),
+    # dummyImport = c(1e5, 1e5, 1e7, 1e7)
+    # dummyExport = c(NA, 1e5)
+    dummyImport = c(1e5)
+    # dummyExport = c(1e5)
+  ),
+  discount = 0.05,
+  # calendar = ideea_modules$calendars$calendar_d365_h24,
+  calendar = newCalendar(),
+  horizon = ideea_modules$horizons$horizon_2020_2060_by_5
+  # regions = c("IND"),
+  # time_steps = c("2024"),
+  # time_slices = c("ANNUAL"),
+  # solver = "glpk"
+)
+
+```
+
+### Reference scenario (BAU)
+```{r}
+set_default_solver(solver_options$glpk)
+
+scen_LDV_BAU <- interpolate(
+  ldv_model, 
+  name = "LDV_BAU", 
+  desc = "Reference scenario (BAU) for Light Duty Vehicles (LDV)")
+
+scen_LDV_BAU <- write_sc(scen_LDV_BAU)
+
+scen_LDV_BAU <- solve_scenario(scen_LDV_BAU)
+scen_LDV_BAU <- read_solution(scen_LDV_BAU)
+
+```
+
+```{r}
+getData(scen_LDV_BAU, name = "vTechCap", merge = T) |> 
+  pivot_wider(names_from = "tech")
+
+getData(scen_LDV_BAU, name = "vTechNewCap", merge = T) |> 
+  pivot_wider(names_from = "tech")
+
+```
+
+### CO2 constraint
+```{r}
+getData(scen_LDV_BAU, name = "vBalance", merge = T, comm = "CO2") 
+
+CO2_CAP <- newConstraint(
+  name = "CO2_CAP",
+  desc = "Cap on CO2 emissions from transportation",
+  eq = "<=",
+  rhs = list(
+    year = c(2030, 2050, 2070),
+    rhs = c(200000, 1000, 1e-5)
+  ),
+  for.each = list(year = 2030:2070), # Cap total emission
+  variable = list(
+    variable = "vBalance",
+    for.sum = list(
+      comm = "CO2",
+      slice = NULL,
+      region = NULL
+    )
+  ),
+  defVal = Inf,
+  interpolation = "inter.forth"
+)
+
+
+```
+
+### Carbon CAP scenario
+```{r}
+scen_LDV_CAP <- interpolate(
+  ldv_model, 
+  name = "LDV_CAP", 
+  desc = "Scenario with CO2 emissions cap for Light Duty Vehicles (LDV)",
+  CO2_CAP
+)
+
+scen_LDV_CAP <- write_sc(scen_LDV_CAP)
+scen_LDV_CAP <- solve_scenario(scen_LDV_CAP)
+scen_LDV_CAP <- read_solution(scen_LDV_CAP)  
+
+summary(scen_LDV_CAP)
+
+getData(scen_LDV_CAP, name = "vBalance", merge = T, comm = "CO2")
+
+getData(scen_LDV_CAP, name = "vTechNewCap", merge = T) |> 
+  pivot_wider(names_from = "tech")
+
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 
