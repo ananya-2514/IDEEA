@@ -1,0 +1,191 @@
+---
+title: "IDEEA: LDV Passenger Vehicles"
+editor_options:
+  chunk_output_type: console
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+                      fig.height = 4, fig.width = 7)
+```
+
+```{r libraries, message=FALSE, warning=FALSE}
+library(IDEEA)
+library(data.table)
+source("R/ideea_report.r")
+source("R/ideea_vehicle.R")
+```
+
+## Additional fuel commodities
+
+Commodities beyond GSL/DSL/BIO/ELCPJ that are needed for the full LDV fleet.
+
+```{r new_commodities}
+CNG <- newCommodity(
+  name = "CNG",
+  desc = "Compressed Natural Gas",
+  unit = "PJ",
+  timeframe = "ANNUAL",
+  emis = data.frame(
+    comm = "CO2",
+    emis = 56.1  # tCO2/PJ, source: IEA/IPCC
+  )
+)
+
+LPG <- newCommodity(
+  name = "LPG",
+  desc = "Liquefied Petroleum Gas (Autogas)",
+  unit = "PJ",
+  timeframe = "ANNUAL",
+  emis = data.frame(
+    comm = "CO2",
+    emis = 63.1  # tCO2/PJ
+  )
+)
+
+H2 <- newCommodity(
+  name = "H2",
+  desc = "Hydrogen (compressed, green/blue)",
+  unit = "PJ",
+  timeframe = "ANNUAL",
+  emis = data.frame(
+    comm = "CO2",
+    emis = 0  # tCO2/PJ, zero-emission at point of use
+  )
+)
+```
+
+## Read vehicle parameters
+
+```{r read_params}
+params_df <- read.csv(
+  file             = "data/LDV_passenger_params.csv",
+  comment.char     = "#",
+  stringsAsFactors = FALSE,
+  na.strings       = c("NA", "")
+)
+# Display the table
+knitr::kable(
+  params_df[, c("name", "desc", "fuels", "eff_hwy", "eff_cty", "eff_unit",
+                "vehicle_cost_usd", "annual_cost_usd", "olife")],
+  caption = "LDV Passenger Vehicle Parameters (placeholder values — calibrate from BNVFE)"
+)
+```
+
+## Build technology objects
+
+```{r build_techs, results='hide'}
+# Energy content (MJ/L or MJ/kg) for fuel types used in this fleet.
+# CNG and H2 are stored as MJ per "model unit" — here we use MJ/m³ (CNG) and
+# MJ/kg (H2) as a proxy for the L/100km → MJ/km conversion when eff_unit="MJ/km".
+# For MJ/km entries the fuel_energy vector is not actually needed, but is kept
+# for completeness and future L/100km conversions.
+ldv_fuel_energy <- c(
+  GSL  = 34.2,   # MJ/L LHV
+  DSL  = 36.9,
+  BIO  = 26.8,   # ethanol/biodiesel average
+  LPG  = 26.0,
+  CNG  = 35.8,   # MJ/m³ STP (used as proxy)
+  H2   = 120.0,  # MJ/kg LHV (hydrogen)
+  ELCPJ = NA_real_  # electricity: handled by km/kWh unit, no MJ/L needed
+)
+
+# Helper: parse a "|"-delimited fuel string into a character vector
+parse_fuels <- function(x) trimws(strsplit(x, "\\|")[[1]])
+
+# Build all technologies from the CSV rows
+ldv_tech_list <- lapply(seq_len(nrow(params_df)), function(i) {
+  p <- params_df[i, ]
+
+  fuels      <- parse_fuels(p$fuels)
+  blend_fuel <- if (!is.na(p$blend_fuel)) p$blend_fuel else NULL
+
+  ideea_vehicle(
+    name  = p$name,
+    desc  = p$desc,
+    fuels = fuels,
+    primary_fuel   = p$primary_fuel,
+    blend_fuel     = blend_fuel,
+    blend_share_up = if (!is.na(p$blend_share_up)) p$blend_share_up else 0.1,
+
+    eff_hwy  = p$eff_hwy,
+    eff_cty  = p$eff_cty,
+    eff_unit = p$eff_unit,
+    fuel_energy = ldv_fuel_energy,
+
+    avg_km_yr      = p$avg_km_yr,
+    capacity_units = p$capacity_units,
+
+    load_unit            = "passengers",
+    load_per_vehicle_hwy = p$load_per_vehicle_hwy,
+    load_per_vehicle_cty = p$load_per_vehicle_cty,
+    share_hwy_up = p$share_hwy_up,
+    share_cty_up = p$share_cty_up,
+
+    vehicle_cost_usd = p$vehicle_cost_usd,
+    annual_cost_usd  = p$annual_cost_usd, 
+    olife      = p$olife,
+    region     = NA,
+    start_year = 2022
+  )
+})
+names(ldv_tech_list) <- params_df$name
+```
+
+Number of technologies created: `r length(ldv_tech_list)`.
+
+## Technology diagrams
+
+```{r draw_techs, fig.height=4, fig.width=9, results='asis'}
+for (nm in names(ldv_tech_list)) {
+  cat("\n\n###", nm, "\n\n")
+  draw(ldv_tech_list[[nm]])
+}
+```
+
+## Fuel efficiency summary
+
+```{r eff_summary, results='asis'}
+eff_tables <- lapply(names(ldv_tech_list), function(nm) {
+  df <- vehicle_eff_table(ldv_tech_list[[nm]], fuel_energy = ldv_fuel_energy)
+  if (!is.null(df)) { df$tech <- nm; df }
+})
+eff_all <- do.call(rbind, Filter(Negate(is.null), eff_tables))
+
+knitr::kable(
+  eff_all[, c("tech", "mode", "fuel", "L_per_100km", "km_per_kWh", "MJ_per_km", "mpg_us")],
+  digits  = 2,
+  caption = "Fuel efficiency summary (all units)"
+)
+```
+
+## Generate individual PDF reports
+
+Reports are written to `reports/LDV/`. Each report is one page (PDF).
+
+```{r generate_reports, results='asis'}
+dir.create("reports/LDV", recursive = TRUE, showWarnings = FALSE)
+
+for (i in seq_len(nrow(params_df))) {
+  p   <- params_df[i, ]
+  nm  <- p$name
+  tch <- ldv_tech_list[[nm]]
+
+  img <- if (!is.na(p$image_file) && file.exists(p$image_file)) p$image_file else NULL
+  out <- file.path("reports/LDV", paste0(nm, ".pdf"))
+
+  tryCatch({
+    ideea_report(
+      object     = tch,
+      type       = "vehicle",
+      image_file = img,
+      file       = out, 
+      fuel_energy = ldv_fuel_energy
+    )
+    cat("- **", nm, "** → `", out, "`\n", sep = "")
+  }, error = function(e) {
+    cat("- **", nm, "** — ERROR:", conditionMessage(e), "\n")
+  })
+}
+```
