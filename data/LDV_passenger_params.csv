@@ -1,0 +1,35 @@
+# LDV Passenger Vehicle Parameters for ideea_vehicle()
+# All efficiency values are PLACEHOLDERS — calibrate from BNVFE reference data
+# Columns:
+#   name             : technology object name (R identifier)
+#   desc             : human description
+#   fuels            : "|"-separated fuel commodity names (must exist in repository)
+#   primary_fuel     : fuel used for energy-content lookup (volumetric eff_units)
+#   blend_fuel       : optional secondary/blend fuel name (leave blank if none)
+#   blend_share_up   : max blend fraction [0-1] (ignored if blend_fuel is blank)
+#   eff_hwy          : highway efficiency value
+#   eff_cty          : city efficiency value
+#   eff_unit         : one of: L/100km | mpg | mpg_uk | km/kWh | kWh/100km | BTU/mi | MJ/km | PJ/MPKm
+#   avg_km_yr        : average annual km per vehicle
+#   capacity_units   : vehicles per model capacity unit (default 1000)
+#   load_per_vehicle_hwy : passengers/vehicle on highway (cact2cout)
+#   load_per_vehicle_cty : passengers/vehicle in city   (cact2cout)
+#   share_hwy_up     : max fraction of activity on highway [0-1]
+#   share_cty_up     : max fraction of activity in city    [0-1]
+#   vehicle_cost_usd : purchase price per vehicle [USD]
+#   annual_cost_usd  : annual maintenance/running cost per vehicle [USD/year]
+#   olife            : technical lifetime [years]
+#   image_file       : path to vehicle image (relative to project root)
+name,desc,fuels,primary_fuel,blend_fuel,blend_share_up,eff_hwy,eff_cty,eff_unit,avg_km_yr,capacity_units,load_per_vehicle_hwy,load_per_vehicle_cty,share_hwy_up,share_cty_up,vehicle_cost_usd,annual_cost_usd,olife,image_file
+LDV_GSL,Gasoline Light Duty Vehicle,GSL,GSL,,NA,10,15,L/100km,10000,1000,2,3,0.4,0.8,15000,500,10,images/techs/LDV-gasoline.png
+LDV_DSL,Diesel Light Duty Vehicle,DSL,DSL,,NA,8,12,L/100km,10000,1000,2,3,0.4,0.8,16000,550,10,images/techs/LDV-diesel.png
+LDV_E10,Gasoline–Ethanol Blend (E10) Light Duty Vehicle,GSL|BIO,GSL,BIO,0.1,10,15,L/100km,10000,1000,2,3,0.4,0.8,15000,500,10,images/techs/LDV-biofuel.png
+LDV_E85,E85 Flex-Fuel Light Duty Vehicle (85% Ethanol),GSL|BIO,BIO,GSL,0.15,11,17,L/100km,10000,1000,2,3,0.4,0.8,15500,500,10,images/techs/LDV-E85.png
+LDV_E100,Pure Ethanol (E100) Light Duty Vehicle,BIO,BIO,,NA,12,18,L/100km,10000,1000,2,3,0.4,0.8,15000,500,10,images/techs/LDV-E100.png
+LDV_B100,Pure Biodiesel (B100) Light Duty Vehicle,BIO,BIO,,NA,9,13,L/100km,10000,1000,2,3,0.4,0.8,16000,500,10,images/techs/LDV-B100.png
+LDV_CNG,Compressed Natural Gas Light Duty Vehicle,CNG,CNG,,NA,2.8,3.5,MJ/km,10000,1000,2,3,0.4,0.8,17000,500,10,images/techs/LDV-CNG.png
+LDV_LPG,LPG (Autogas) Light Duty Vehicle,LPG,LPG,,NA,3.5,4.5,MJ/km,10000,1000,2,3,0.4,0.8,16500,500,10,images/techs/LDV-PLG.png
+LDV_HYB,Gasoline Hybrid Light Duty Vehicle,GSL,GSL,,NA,6,8,L/100km,10000,1000,2,3,0.4,0.8,20000,500,10,images/techs/LDV-hybrid.png
+LDV_PHEV,Plug-in Hybrid Light Duty Vehicle (combined cycle),GSL|ELCPJ,GSL,,NA,4.5,6,L/100km,10000,1000,2,3,0.4,0.8,25000,500,10,images/techs/LDV-PHEV.png
+LDV_EV,Battery Electric Light Duty Vehicle,ELCPJ,,,,6,4.5,km/kWh,10000,1000,2,3,0.4,0.8,30000,500,10,images/techs/LDV-electric.png
+LDV_H2,Hydrogen Fuel Cell Light Duty Vehicle,H2,,,,0.9,1.2,MJ/km,10000,1000,2,3,0.4,0.8,45000,500,10,images/techs/LDV-hydrogen.png
