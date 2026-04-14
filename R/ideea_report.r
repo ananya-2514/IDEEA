@@ -1,6 +1,6 @@
-# ideea_report.r - To add in IDEEA package
-# One-page PDF summary reports for energyRt S4 objects.
-# Requires: rmarkdown, tinytex (or a local LaTeX installation), ggplot2
+# ideea_report.r
+# Summary reports for energyRt S4 objects in PDF, HTML, or LaTeX format.
+# Requires: rmarkdown, ggplot2; PDF/TeX also require tinytex or a local LaTeX installation
 
 # S4 generic ---------------------------------------------------------------
 
@@ -16,15 +16,28 @@
 #'   the object's unit labels.
 #' @param image_file Character. Optional path to a PNG/JPG image displayed in
 #'   the upper-right corner of the page. `NULL` skips the image.
-#' @param file Character. Destination PDF path.  Defaults to a temporary file.
-#' @param ... Additional arguments forwarded to `rmarkdown::render()`.
+#' @param file Character. Destination file path.  Defaults to a temporary file
+#'   with the extension appropriate for `format`.
+#' @param format Character. Output format: `"pdf"` (default), `"html"`, or
+#'   `"tex"` (standalone LaTeX source, no PDF compilation).
+#' @param levcost An \code{ideea_levcost} (or \code{ideea_levcost_list}) object
+#'   returned by \code{\link{ideea_levcost}}, or \code{NULL} (default).  When
+#'   \code{NULL} and any \code{ideea_levcost} arguments are passed via \code{...}
+#'   (e.g. \code{group}, \code{repo}, \code{discount}), \code{ideea_levcost} is
+#'   called automatically on \code{object} with those arguments.
+#' @param ... Arguments forwarded to \code{\link{ideea_levcost}} (when
+#'   \code{levcost = NULL} and levcost parameters are provided) and/or to
+#'   \code{rmarkdown::render()}.  Known \code{ideea_levcost} parameter names are
+#'   intercepted automatically; everything else is passed to the renderer.
 #'
-#' @return The path to the generated PDF (invisibly).
+#' @return The path to the generated output file (invisibly).
 #' @export
 setGeneric(
   "ideea_report",
   function(object, type = NULL, image_file = NULL, file = NULL,
-           fuel_energy = c(), ...) {
+           format = c("pdf", "html", "tex"),
+           fuel_energy = c(), levcost = NULL,
+           cost_unit = NULL, cost_unit_comm = NULL, ...) {
     standardGeneric("ideea_report")
   }
 )
@@ -37,7 +50,11 @@ setMethod(
   "ideea_report",
   "technology",
   function(object, type = NULL, image_file = NULL, file = NULL,
-           fuel_energy = c(), ...) {
+           format = c("pdf", "html", "tex"),
+           fuel_energy = c(), levcost = NULL,
+           cost_unit = NULL, cost_unit_comm = NULL, ...) {
+
+    format <- match.arg(format, c("pdf", "html", "tex"), several.ok = TRUE)
 
     # -- resolve preset type ------------------------------------------------
     if (is.null(type)) {
@@ -47,35 +64,57 @@ setMethod(
     }
     type <- match.arg(type, c("vehicle", "generic"))
 
+    # -- default cost units for vehicle reports --------------------------------
+    if (type == "vehicle") {
+      if (is.null(cost_unit)) cost_unit <- "USD/(Vh*km)"
+      if (is.null(cost_unit_comm)) cost_unit_comm <- "USD/(Passenger*km)"
+    }
+
+    # -- split ... into ideea_levcost args vs rmarkdown::render args ----------
+    .levcost_params <- c("comm", "group", "repo", "fuel_costs",
+                         "discount", "base_year",
+                         "horizon", "calendar", "region", "weather",
+                         "frontier", "solver",
+                         "full_output", "verbose")
+    dots       <- list(...)
+    lc_dots    <- dots[intersect(names(dots), .levcost_params)]
+    render_dots <- dots[setdiff(names(dots), .levcost_params)]
+
+    # Auto-run ideea_levcost when caller supplied its args but not the result
+    if (is.null(levcost) && length(lc_dots) > 0) {
+      levcost <- tryCatch(
+        do.call(ideea_levcost, c(list(object = object), lc_dots)),
+        error = function(e) {
+          warning("ideea_levcost() failed inside ideea_report: ",
+                  conditionMessage(e), "\nLevelized cost section will be omitted.")
+          NULL
+        }
+      )
+    }
+
     # -- locate Rmd template ------------------------------------------------
     tmpl <- .find_template(type)
 
-    # -- output file --------------------------------------------------------
+    # -- output file(s) -------------------------------------------------------
+    # When multiple formats are requested, `file` is treated as a base path
+    # (extension stripped/ignored) and each format gets its own extension.
+    # When a single format is requested, `file` behaves as before.
     if (is.null(file)) {
-      file <- tempfile(
+      file_base <- tempfile(
         pattern = paste0("ideea_report_", gsub("[^A-Za-z0-9_]", "_",
-                                               object@name), "_"),
-        fileext = ".pdf"
-      )
+                                               object@name), "_"))
+    } else {
+      file_base <- tools::file_path_sans_ext(file)
     }
-    file <- normalizePath(file, mustWork = FALSE)
+    file_base <- normalizePath(file_base, mustWork = FALSE)
 
-    # -- image path must be absolute and space-free for LaTeX ---------------
+    # -- image path must be absolute ----------------------------------------
+    image_file_abs <- NULL
     if (!is.null(image_file)) {
       if (!file.exists(image_file)) {
         warning("image_file not found and will be ignored: ", image_file)
-        image_file <- NULL
       } else {
-        image_file <- normalizePath(image_file, mustWork = TRUE)
-        # pdflatex cannot handle spaces in paths – copy to a temp file
-        if (grepl(" ", image_file)) {
-          ext <- tolower(tools::file_ext(image_file))
-          tmp_img <- tempfile(pattern = "ideea_img_", fileext = paste0(".", ext))
-          file.copy(image_file, tmp_img, overwrite = TRUE)
-          image_file <- tmp_img
-        }
-        # On Windows replace backslashes for LaTeX
-        image_file <- gsub("\\\\", "/", image_file)
+        image_file_abs <- normalizePath(image_file, mustWork = TRUE)
       }
     }
 
@@ -101,26 +140,142 @@ setMethod(
       NULL
     })
 
+    # -- share frontier chart (from tech directly, always when groups present) -
+    share_frontier_plot <- NULL
+    if (requireNamespace("ggplot2", quietly = TRUE)) {
+      share_frontier_plot <- tryCatch({
+        df <- tech_share_frontier(object)
+        if (!is.null(df) && nrow(df) > 0) {
+          plot_share_frontier(df, base_size = if (any(format %in% c("pdf", "tex"))) 8L else 11L)
+        } else NULL
+      }, error = function(e) {
+        warning("share frontier plot failed: ", conditionMessage(e))
+        NULL
+      })
+    }
+
+    # -- generate levcost plots (compact, for inline report figure) ----------
+    levcost_plot  <- NULL
+    frontier_plot <- NULL
+    if (!is.null(levcost)) {
+      if (!requireNamespace("ggplot2", quietly = TRUE)) {
+        warning("Package 'ggplot2' is required for levcost plots; they will be omitted.")
+      } else {
+        lc_obj <- if (inherits(levcost, "ideea_levcost_list")) levcost[[1]] else levcost
+        compact_theme <- ggplot2::theme_bw(base_size = 10L) +
+          ggplot2::theme(
+            legend.position  = "bottom",
+            legend.key.size  = ggplot2::unit(0.3, "cm"),
+            legend.text      = ggplot2::element_text(size = 6),
+            plot.title       = ggplot2::element_text(size = 8, face = "bold"),
+            plot.subtitle    = ggplot2::element_text(size = 7),
+            plot.caption     = ggplot2::element_text(size = 6),
+            axis.text.x      = ggplot2::element_text(angle = 45, hjust = 1,
+                                                      size = 7),
+            plot.margin      = ggplot2::margin(2, 4, 2, 2)
+          )
+        levcost_plot <- tryCatch({
+          p <- autoplot(lc_obj, type = "npv", cost_unit = cost_unit,
+                       cost_unit_comm = cost_unit_comm)
+          if (!is.null(p)) p + compact_theme else NULL
+        }, error = function(e) {
+          warning("levcost plot (type='npv') failed: ", conditionMessage(e))
+          NULL
+        })
+        if (!is.null(lc_obj$frontier) && nrow(lc_obj$frontier) > 0) {
+          frontier_plot <- tryCatch({
+            p <- autoplot(lc_obj, type = "frontier", cost_unit = cost_unit,
+                         cost_unit_comm = cost_unit_comm)
+            if (!is.null(p)) p + compact_theme else NULL
+          }, error = function(e) {
+            warning("frontier plot failed: ", conditionMessage(e))
+            NULL
+          })
+        }
+      }
+    }
+
     # -- build params -------------------------------------------------------
-    params <- .tech_report_params(object, type, image_file, draw_file,
+    params <- .tech_report_params(object, type, image_file_abs, draw_file,
                                   fuel_energy = fuel_energy)
+    params$levcost_plot          <- levcost_plot
+    params$frontier_plot         <- frontier_plot
+    params$share_frontier_plot   <- share_frontier_plot
+    # Cost unit labels for template header
+    params$units_costs      <- if (!is.null(cost_unit) && nzchar(cost_unit)) cost_unit else ""
+    params$units_costs_comm <- if (!is.null(cost_unit_comm) && nzchar(cost_unit_comm)) cost_unit_comm else ""
+    # Activity LCOE NPV
+    params$levcost_npv <- NULL
+    # Per-commodity LCOE NPVs (named numeric)
+    params$levcost_npv_comm <- NULL
+    if (!is.null(levcost)) {
+      lc_src <- if (inherits(levcost, "ideea_levcost_list")) levcost[[1]] else levcost
+      npv    <- lc_src$levcost_npv
+      if (!is.null(npv)) params$levcost_npv <- as.numeric(npv)[1]
+      # Per-commodity LCOE NPVs from frontier data
+      lbc <- lc_src$levcost_by_comm
+      if (!is.null(lbc) && nrow(lbc) > 0) {
+        # Use output-only frontier scenarios (primary_input is NA)
+        if ("primary_input" %in% names(lbc))
+          lbc <- lbc[is.na(lbc$primary_input), , drop = FALSE]
+        if (nrow(lbc) > 0)
+          params$levcost_npv_comm <- tapply(lbc$value, lbc$comm, sum, na.rm = TRUE)
+      }
+    }
 
-    # -- render -------------------------------------------------------------
-    rmarkdown::render(
-      input         = tmpl,
-      output_format = rmarkdown::pdf_document(
-        latex_engine = "pdflatex",
-        keep_tex     = FALSE
-      ),
-      output_file   = file,
-      params        = params,
-      envir         = new.env(parent = globalenv()),
-      quiet         = TRUE,
-      ...
-    )
+    # -- ensure TinyTeX is loaded when needed --------------------------------
+    if (any(format %in% c("pdf", "tex"))) {
+      if (!isNamespaceLoaded("tinytex") &&
+          requireNamespace("tinytex", quietly = TRUE)) {
+        loadNamespace("tinytex")
+      } else if (!requireNamespace("tinytex", quietly = TRUE)) {
+        message("Tip: install the 'tinytex' package to use TinyTeX for PDF rendering ",
+                "(install.packages('tinytex'); tinytex::install_tinytex()).")
+      }
+    }
 
-    message("Report written to: ", file)
-    invisible(file)
+    # -- render each format (levcost computed once, reused) -----------------
+    out_files <- character(0)
+    for (fmt in format) {
+      ext  <- switch(fmt, pdf = ".pdf", html = ".html", tex = ".tex")
+      fout <- paste0(file_base, ext)
+
+      out_fmt <- switch(fmt,
+        pdf  = rmarkdown::pdf_document(latex_engine = "pdflatex", keep_tex = FALSE),
+        html = rmarkdown::html_document(self_contained = TRUE),
+        tex  = rmarkdown::latex_document()
+      )
+
+      # Adjust image path for LaTeX (spaces, backslashes)
+      fmt_params <- params
+      if (!is.null(image_file_abs) && fmt %in% c("pdf", "tex")) {
+        img <- image_file_abs
+        if (grepl(" ", img)) {
+          ext_img <- tolower(tools::file_ext(img))
+          tmp_img <- tempfile(pattern = "ideea_img_", fileext = paste0(".", ext_img))
+          file.copy(img, tmp_img, overwrite = TRUE)
+          img <- tmp_img
+        }
+        fmt_params$image_file <- gsub("\\\\", "/", img)
+      }
+
+      do.call(rmarkdown::render, c(
+        list(
+          input         = tmpl,
+          output_format = out_fmt,
+          output_file   = fout,
+          params        = fmt_params,
+          envir         = new.env(parent = globalenv()),
+          quiet         = TRUE
+        ),
+        render_dots
+      ))
+
+      message("Report written to: ", fout)
+      out_files <- c(out_files, fout)
+    }
+
+    invisible(if (length(out_files) == 1) out_files[1] else out_files)
   }
 )
 
@@ -311,3 +466,73 @@ setMethod(
   df <- df[rowSums(!is.na(df[, val_cols, drop = FALSE])) > 0, , drop = FALSE]
   if (nrow(df) == 0) NULL else df
 }
+
+# Format wrappers ----------------------------------------------------------
+
+#' Generate a one-page PDF report for an energyRt object
+#'
+#' @description
+#' Thin wrapper around \code{\link{ideea_report}} that fixes \code{format = "pdf"}.
+#' See \code{\link{ideea_report}} for full parameter documentation.
+#'
+#' @inheritParams ideea_report
+#' @return The path to the generated \code{.pdf} file (invisibly).
+#' @export
+setGeneric(
+  "ideea_report_pdf",
+  function(object, ...) standardGeneric("ideea_report_pdf")
+)
+
+#' @rdname ideea_report_pdf
+#' @export
+setMethod(
+  "ideea_report_pdf",
+  "technology",
+  function(object, ...) ideea_report(object, ..., format = "pdf")
+)
+
+#' Generate a self-contained HTML report for an energyRt object
+#'
+#' @description
+#' Thin wrapper around \code{\link{ideea_report}} that fixes \code{format = "html"}.
+#' Produces a portable single-file \code{.html} document with embedded assets.
+#' See \code{\link{ideea_report}} for full parameter documentation.
+#'
+#' @inheritParams ideea_report
+#' @return The path to the generated \code{.html} file (invisibly).
+#' @export
+setGeneric(
+  "ideea_report_html",
+  function(object, ...) standardGeneric("ideea_report_html")
+)
+
+#' @rdname ideea_report_html
+#' @export
+setMethod(
+  "ideea_report_html",
+  "technology",
+  function(object, ...) ideea_report(object, ..., format = "html")
+)
+
+#' Generate a standalone LaTeX report for an energyRt object
+#'
+#' @description
+#' Thin wrapper around \code{\link{ideea_report}} that fixes \code{format = "tex"}.
+#' Produces a standalone \code{.tex} file without compiling to PDF.
+#' See \code{\link{ideea_report}} for full parameter documentation.
+#'
+#' @inheritParams ideea_report
+#' @return The path to the generated \code{.tex} file (invisibly).
+#' @export
+setGeneric(
+  "ideea_report_tex",
+  function(object, ...) standardGeneric("ideea_report_tex")
+)
+
+#' @rdname ideea_report_tex
+#' @export
+setMethod(
+  "ideea_report_tex",
+  "technology",
+  function(object, ...) ideea_report(object, ..., format = "tex")
+)

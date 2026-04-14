@@ -3,6 +3,10 @@ title: "IDEEA: transportation module"
 editor_options: 
   chunk_output_type: console
 output: html_document
+params:
+  # true → model refueling/charging infrastructure as INFR_* newTechnology objects
+  # (with vehicle cinp2ainp linkage) instead of unconstrained newSupply (default).
+  infra_as_tech: false
 ---
 
 ```{r, include = FALSE}
@@ -15,9 +19,13 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup, warning=FALSE, message=FALSE}
-library(IDEEA)
-library(data.table)
+# library(IDEEA)
+# library(data.table)
+source("R/setup.R")
 source("R/ideea_report.r")
+source("R/ideea_vehicle.R")
+source("R/ideea_levcost.R")
+source("R/read_transport_inputs.R")
 # library(energyRt.dev)
 ```
 
@@ -53,650 +61,688 @@ LDV or cars are modeled to deliver two types of transportation services, based o
 * city passenger*km (`P-LDV-CTY`) 
 
 
-### Commodities
-```{r}
-GSL <- newCommodity(
-  name = "GSL", 
-  desc = "Gasoline (petrol)",
-  unit = "PJ", 
-  emis = data.frame(
-    comm = "CO2",
-    emis = 69.3 # tCO2/PJ, source: https://www.eia.gov/environment/emissions/co2_vol_mass.php
-  ),
-  timeframe = "ANNUAL")
+### Inputs
 
-DSL <- newCommodity(
-  name = "DSL", 
-  desc = "Diesel",
-  unit = "PJ", 
-  emis = data.frame(
-    comm = "CO2",
-    emis = 74.1 # tCO2/PJ, source: https://www.eia.gov/environment/emissions/co2_vol_mass.php
-  ),
-  timeframe = "ANNUAL")
+```{r shared_setup}
+tabs <- read_transport_inputs("data/transport_inputs.xlsx")
+options(infra_as_tech = isTRUE(params$infra_as_tech))  # propagates to all build_branch_repo() calls
+names(tabs)
 
-BIO <- newCommodity(
-  name = "BIO",
-  desc = "Biofuels (ethanol, biodiesel)",
-  unit = "PJ",
-  timeframe = "ANNUAL",
-  emis = data.frame(
-    comm = "CO2",
-    emis = 0 # tCO2/PJ, assuming carbon neutrality of biofuels
-  )
-)
-
-ELCPJ <- newCommodity(
-  name = "ELCPJ",
-  unit = "PJ",
-  timeframe = "ANNUAL"
-)
-
-# Blended fuel of 10% Ethanol and 90% gasoline
-GSL10 <- newCommodity(
-  name = "GSL10",
-  desc = "Blended fuel of 10% Ethanol and 90% gasoline",
-  unit = "PJ",
-  timeframe = "ANNUAL",
-  emis = data.frame(
-    comm = "CO2",
-    emis = 0.9 * 69.3 # tCO2/PJ, assuming 10% reduction in emissions compared to pure gasoline
-  )
-)
-
-# Emissions
-PM <- ideea_modules$electricity$reg5$repo_comm@data$PM
-CO2 <- ideea_modules$electricity$reg5$repo_comm@data$CO2
-
-```
-
-### Transport services
-```{r}
-PLDVHWY <- newCommodity(
-  name = "PLDVHWY", 
-  desc = "LDV passengers transportation on highway",
-  unit = "MPKm", # "million passenger * km", 
-  timeframe = "ANNUAL")
-
-PLDVCTY <- newCommodity(
-  name = "PLDVCTY", 
-  desc = "LDV passengers transportation in city",
-  unit = "MPKm", # "million passenger * km", 
-  timeframe = "ANNUAL")
-```
-
-
-### Demand
-```{r}
-DEM_PLDVHWY <- newDemand(
-  name = "DEM_PLDVHWY",
-  desc = "Demand for LDV passengers transportation on highway",
-  commodity = "PLDVHWY",
-  unit = "MPKm", # "million passenger * km", 
-  region = "IND",
-  dem = data.frame(
-    region = "IND",
-    year = 2024,
-    dem = 1000 # million passenger * km a year
-  )
-)
-
-DEM_PLDVCTY <- newDemand(
-  name = "DEM_PLDVCTY",
-  desc = "Demand for LDV passengers transportation in city",
-  commodity = "PLDVCTY",
-  unit = "MPKm", # "million passenger * km", 
-  region = "IND",
-  dem = data.frame(
-    region = "IND",
-    year = 2024,
-    dem = 9000 # million passenger * km a year
-  )
-)
-
-```
-
-### Supply
-
-```{r}
-SUP_GSL <- newSupply(
-  name = "SUP_GSL",
-  desc = "Supply of gasoline (petrol)",
-  commodity = "GSL",
-  region = "IND",
-  availability = data.frame(
-    region = "IND",
-    year = 2024,
-    cost = 50 # MUSD/PJ
-  )
-)
-
-SUP_DSL <- newSupply(
-  name = "SUP_DSL",
-  desc = "Supply of diesel",
-  commodity = "DSL",
-  region = "IND",
-  availability = data.frame(
-    region = "IND",
-    year = 2024,
-    cost = 40 # MUSD/PJ
-  )
-)
-
-SUP_BIO <- newSupply(
-  name = "SUP_BIO",
-  desc = "Supply of biofuels (ethanol, biodiesel)",
-  commodity = "BIO",
-  region = "IND",
-  availability = data.frame(
-    region = "IND",
-    year = 2024,
-    cost = 70 # MUSD/PJ
-  )
-)
-
-SUP_ELCPJ <- newSupply(
-  name = "SUP_ELCPJ",
-  desc = "Supply of electricity for transportation",
-  commodity = "ELCPJ",
-  region = "IND",
-  availability = data.frame(
-    region = "IND",
-    year = 2024,
-    cost = 30 # MUSD/PJ
-  )
-)
-
-SUP_GSL10 <- newSupply(
-  name = "SUP_GSL10",
-  desc = "Supply of blended fuel of 10% Ethanol and 90% gasoline",
-  commodity = "GSL10",
-  region = "IND",
-  availability = data.frame(
-    region = "IND",
-    year = 2024,
-    cost = 60 # MUSD/PJ
-  )
-)
-
-
-```
-
-
-### Infrastructure
-
-Q: Do we have a data on number of fuel stations, gasoline and diesel sales?
-
-#### Services
-
-Refuel infrastructure services by type, modeled as commodities.
-
-```{r}
-PETRO_REFUEL <- newCommodity(
-  name = "PETRO_REFUEL", 
-  desc = "Petrol refueling station services, gasoline and disel",
-  unit = "PJ", # number of cars to fuel a year
-  timeframe = "ANNUAL")
-
-CNG_REFUEL <- newCommodity(
-  name = "CNG_REFUEL", 
-  desc = "Compressed Natural Gas (CNG) refueling station services",
-  unit = "PJ", # number of cars to fuel a year
-  timeframe = "ANNUAL")
-
-LPG_REFUEL <- newCommodity(
-  name = "LPG_REFUEL", 
-  desc = "LPG station",
-  unit = "PJ", # number of cars to fuel a year
-  timeframe = "ANNUAL")
-
-EV_CHARGING <- newCommodity(
-  name = "EV_CHARGING", 
-  desc = "Electric car charing station services",
-  unit = "GWh", # number of cars to fuel a year
-  timeframe = "ANNUAL")
-
-```
-
-
-#### Capacity
-
-Refuel stations by type (Gas pumps, EV chargers, CNG and LPG stations) can be modeled as technology or supply objects. In case of technology, model will optimize required capacity of every service based on costs and technological parameters. In the simplest way, refueling services can be modeled as supply objects.
-```{r}
-# Supply case
-SUP_PETRO_REFUEL <- newSupply(
-  name = "SUP_PETRO_REFUEL",
-  desc = "Petrol refueling station services, gasoline and disel",
-  commodity = "PETRO_REFUEL",
-  # unit = ... # either "PJ" or "1000 cars to fuel a year"
-  availability = data.frame(
-    # region = NA,
-    year = 2024,
-    # ava.up = 1000 # should correspond to the unit
-    cost = 10 # MUSD/PJ
-  )
-  # region = NA_character_
-)
-
-SUP_CNG_REFUEL <- newSupply(
-  name = "SUP_CNG_REFUEL",
-  desc = "Compressed Natural Gas (CNG) refueling station services",
-  commodity = "CNG_REFUEL",
-  region = NA_character_,
-  availability = data.frame(
-    # region = NA,
-    year = 2024,
-    cost = 15 # MUSD/PJ
-  )
-)
-
-SUP_LPG_REFUEL <- newSupply(
-  name = "SUP_LPG_REFUEL",
-  desc = "LPG station",
-  commodity = "LPG_REFUEL",
-  region = NA_character_,
-  availability = data.frame(
-    # region = NA,
-    year = 2024,
-    cost = 12 # MUSD/PJ
-  )
-)
-
-SUP_EV_CHARGING <- newSupply(
-  name = "SUP_EV_CHARGING",
-  desc = "Electric car charing station services",
-  commodity = "EV_CHARGING",
-  region = NA_character_,
-  availability = data.frame(
-    # region = NA_character_,
-    year = 2024,
-    cost = 20 # MUSD/GWh
-  )
-)
-
-energyRt.dev::draw(SUP_PETRO_REFUEL)
-
-```
-
-
-
-### Dual fuel cars
-- Blended fuel 
-- Dual fuel cars
-```{r}
-
-
-```
-
-
-
-### Gasoline cars
-```{r}
-# Technologies
-LDVG <- newTechnology(
-  name = "LDVG",
-  desc = "Gasoline Light Duty Vehicles",
-  input = data.frame(
-    comm = c("GSL", "BIO"),
-    unit = "PJ", # for simplicity and electrification scenarios, normally "PJ"
-    group = "i"
-  ),
-  output = data.frame(
-    comm = c("PLDVHWY",  # passenger * km, highway
-             "PLDVCTY"), # passenger * km, city
-    unit = "MPKm", # million passenger * km
-    group = "o" # a number or string, "o" = output
-  ),
-  units = list(
-    capacity = "1000 Vehicles",
-    activity = "million km, city", # measured in one of the output commodities
-    costs = "MUSD"
-  ),
-  cap2act = 10, # 10000 km per car a year => 10000 * 1000 / 1e6
-  ceff = data.frame(
-    comm = c("GSL", "BIO", "PLDVHWY", "PLDVCTY"),
-    use2cact = c(NA, NA, 3, 2), # !!! calculate million km per unit of input
-    share.up = c(NA, .1, .4, .8),
-    cact2cout = c(NA, NA, 2, 3) # passengers per vehicles (assumption)
-  ),
-  olife = list(olife = 10),
-  capacity = list(
-    region = NA,
-    year = 2022
-    # stock = 500
-  ),
-  invcost = list(
-    invcost = 15 # 15000 [USD/car] * 1000 [cars] / 1e6 => MUSD/1000 cars
-  ),
-  fixom = list(
-    fixom = .5 # repairs a year, taxes and fees, tires, oil change, parking etc.
-  ),
-  # varom = list(
-  #   varom = ... # could be "tires, oil change" 
-  # )
-  aux = list(
-    acomm = c("PETRO_REFUEL", "PM"), 
-    unit = c("PJ", "kt")
-  ), # N cars fueled a year
-  aeff = list(
-    acomm = c("PETRO_REFUEL", "PM"),
-    cap2ainp = c(1, NA), # estimate number of trips to gas-station a year
-    act2aout = c(NA, .01) # find emissions data per km
-    )
-  )
-
-energyRt.dev::draw(LDVG)
-draw(LDVG)
-# ideea_report(LDVG, type = "vehicle", image_file = "images/LDV-gpt.png",
-#              file = "tmp/LDVG_report_v5.pdf")
-
-```
-
-
-### Diesel cars
-```{r}
-
-
-
-```
-
-### Hybrid cars
-```{r}
-LDV_HYB <- newTechnology(
-  name = "LDV_HYB",
-  desc = "Hybrid Light Duty Vehicles",
-  input = data.frame(
-    comm = c("GSL"),
-    unit = "PJ", # for simplicity and electrification scenarios, normally "PJ"
-    group = "i"
-  ),
-  output = data.frame(
-    comm = c("PLDVHWY",  # passenger * km, highway
-             "PLDVCTY"), # passenger * km, city
-    unit = "MPKm", # million passenger * km
-    group = "o" # a number or string, "o" = output
-  ),
-  units = list(
-    capacity = "1000 Vehicles",
-    activity = "million km, city", # measured in one of the output commodities
-    costs = "MUSD"
-  ),
-  cap2act = 10, # 10000 km per car a year => 10000 * 1000 / 1e6
-  ceff = data.frame(
-    comm = c("GSL", "PLDVHWY", "PLDVCTY"),
-    share.up = c(NA, .4, .8),
-    cact2cout = c(NA, 2, 3) # passengers per
-  ),
-  olife = list(olife = 10),
-  capacity = list(
-    region = NA,
-    year = 2022
-    # stock = 500
-  ),
-  invcost = list(
-    invcost = 20 # MUSD/1000 cars
-  ),
-  fixom = list(
-    fixom = .5 # repairs a year, taxes and fees, tires, oil change, parking etc.
-  ),
-  aux = list(
-    acomm = c("PETRO_REFUEL", "PM"), 
-    unit = c("PJ", "kt")
-  ), # N cars fueled a year
-  aeff = list(
-    acomm = c("PETRO_REFUEL", "PM"),
-    cap2ainp = c(1, NA), # estimate number of trips to gas-station a year
-    act2aout = c(NA, .01) # find emissions data per km
-  )
-)
-
-energyRt.dev::draw(LDV_HYB)
-
-
-```
-
-### Plugged in hybrid cars
-```{r}
-LDV_PHEV <- newTechnology(
-  name = "LDV_PHEV",
-  desc = "Plugged in Hybrid Light Duty Vehicles",
-  input = data.frame(
-    comm = c("GSL", "ELCPJ"),
-    unit = "PJ", # for simplicity and electrification scenarios, normally "PJ"
-    group = "i"
-  ),
-  output = data.frame(
-    comm = c("PLDVHWY",  # passenger * km, highway
-             "PLDVCTY"), # passenger * km, city
-    unit = "MPKm", # million passenger * km
-    group = "o" # a number or string, "o" = output
-  ),
-  units = list(
-    capacity = "1000 Vehicles",
-    activity = "million km, city", # measured in one of the output commodities
-    costs = "MUSD"
-  ),
-  cap2act = 10, # 10000 km per car a year =>
-  ceff = data.frame(
-    comm = c("GSL", "ELCPJ", "PLDVHWY", "PLDVCTY"),
-    share.up = c(NA, NA, .4, .8),
-    cact2cout = c(NA, NA, 2, 3) # passengers per
-  ),
-  olife = list(olife = 10),
-  capacity = list(
-    region = NA,
-    year = 2022
-    # stock = 100
-  ),
-  invcost = list(
-    invcost = 25 # MUSD/1000 cars
-  ),
-  fixom = list(
-    fixom = .5 # repairs a year, taxes and fees, tires, oil change
-  ),
-  aux = list(
-    acomm = c("PETRO_REFUEL", "EV_CHARGING", "PM"),
-    unit = c("PJ", "PJ", "kt")
-  ), # N cars fueled a year
-  aeff = list(
-    acomm = c("PETRO_REFUEL", "EV_CHARGING", "PM"),
-    comm = c(NA, "ELCPJ", NA),
-    cap2ainp = c(1, NA, NA), # estimate number of trips to gas
-    cinp2ainp = c(NA, 1, NA), # estimate number of trips to gas
-    act2aout = c(NA, NA, .01) # find emissions data per km
-  )
-)
-
-energyRt.dev::draw(LDV_PHEV)
-
-
-```
-
-### Electric cars
-```{r}
-LDV_EV <- newTechnology(
-  name = "LDV_EV",
-  desc = "Electric Light Duty Vehicles",
-  input = data.frame(
-    comm = c("ELCPJ"),
-    unit = "PJ", # for simplicity and electrification scenarios, normally "PJ"
-    group = "i"
-  ),
-  output = data.frame(
-    comm = c("PLDVHWY",  # passenger * km, highway
-             "PLDVCTY"), # passenger * km, city
-    unit = "MPKm", # million passenger * km
-    group = "o" # a number or string, "o" = output
-  ),
-  units = list(
-    capacity = "1000 Vehicles",
-    activity = "million km, city", # measured in one of the output commodities
-    costs = "MUSD"
-  ),
-  cap2act = 10, # 10000 km per car a year =>
-  ceff = data.frame(
-    comm = c("ELCPJ", "PLDVHWY", "PLDVCTY"),
-    share.up = c(NA, .4, .8),
-    cact2cout = c(NA, 2, 3) # passengers per
-  ),
-  olife = list(olife = 10),
-  capacity = list(
-    region = NA,
-    year = 2022
-    # stock = 100
-  ),
-  invcost = list(
-    invcost = 30 # MUSD/1000 cars
-  ),
-  fixom = list(
-    fixom = .5 # repairs a year, taxes and fees, tires, oil change
-  ),
-  aux = list(
-    acomm = c("EV_CHARGING", "PM"),
-    unit = c("GWh", "kt")
-  ), # N cars fueled a year
-  aeff = list(
-    acomm = c("EV_CHARGING", "PM"),
-    cap2ainp = c(1, NA), # estimate number of trips to gas-station a year
-    act2aout = c(NA, .01) # find emissions data per km
-  )
-)
-
-energyRt.dev::draw(LDV_EV)
-
-```
-
-### Hydrogen cars
-```{r}
-
-```
-
-### Model
-```{r}
-repo_LDV <- newRepository(
-  name = "repo_LDV",
-  desc = "Light Duty Vehicles (LDV) transportation services",
-  # commodities - final demand
-  PLDVHWY, PLDVCTY,
-  # commodities - fuels
-  GSL, DSL, BIO, ELCPJ, GSL10,
-  # commodities - emissions
-  PM, CO2,
-  # commodities - refuel services
-  PETRO_REFUEL, 
-  CNG_REFUEL, LPG_REFUEL, EV_CHARGING,
-  # Supplies - fuels
-  SUP_GSL, SUP_DSL, SUP_BIO, SUP_ELCPJ, SUP_GSL10,
-  # supply of refuel services
-  SUP_PETRO_REFUEL, 
-  SUP_CNG_REFUEL, SUP_LPG_REFUEL, SUP_EV_CHARGING,
-  # technologies
-  LDVG, 
-  LDV_HYB, LDV_PHEV, LDV_EV,
-  # demand
-  DEM_PLDVHWY,
-  DEM_PLDVCTY
-)
-
-ldv_model <- newModel(
-  name = "ldv_model",
-  desc = "Light Duty Vehicles (LDV) transportation services model",
-  data = repo_LDV,
-  region = "IND",
-  debug = data.frame(
-    # comm = c("GSL", "BIO", "PLDVHWY", "PLDVCTY"),
-    # dummyImport = c(1e5, 1e5, 1e7, 1e7)
-    # dummyExport = c(NA, 1e5)
-    dummyImport = c(1e5)
-    # dummyExport = c(1e5)
-  ),
-  discount = 0.05,
-  # calendar = ideea_modules$calendars$calendar_d365_h24,
-  calendar = newCalendar(),
-  horizon = ideea_modules$horizons$horizon_2020_2060_by_5
-  # regions = c("IND"),
-  # time_steps = c("2024"),
-  # time_slices = c("ANNUAL"),
-  # solver = "glpk"
-)
-
-```
-
-### Reference scenario (BAU)
-```{r}
 set_default_solver(solver_options$glpk)
+```
 
-scen_LDV_BAU <- interpolate(
-  ldv_model, 
-  name = "LDV_BAU", 
-  desc = "Reference scenario (BAU) for Light Duty Vehicles (LDV)")
+---
 
-scen_LDV_BAU <- write_sc(scen_LDV_BAU)
+## LDV Passenger model
 
-scen_LDV_BAU <- solve_scenario(scen_LDV_BAU)
-scen_LDV_BAU <- read_solution(scen_LDV_BAU)
+```{r ldv_psgr_build, results='hide'}
+repo_LDV_psgr <- build_branch_repo(tabs, "LDV_psgr")
+repo_LDV_psgr <- add(repo_LDV_psgr,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_LDV_psgr)
+```
+
+```{r ldv_psgr_model}
+model_LDV_psgr <- newModel(
+  name     = "LDV_psgr",
+  desc     = "LDV passenger transport model",
+  data     = repo_LDV_psgr,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r ldv_psgr_solve}
+scen_LDV_psgr_BAU <- interpolate(
+  model_LDV_psgr,
+  name = "LDV_psgr_BAU",
+  desc = "LDV passenger BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_LDV_psgr_BAU <- write_sc(scen_LDV_psgr_BAU)
+scen_LDV_psgr_BAU <- solve_scenario(scen_LDV_psgr_BAU)
+scen_LDV_psgr_BAU <- read_solution(scen_LDV_psgr_BAU)
+summary(scen_LDV_psgr_BAU)
+scen_LDV_psgr_BAU <- save_scenario(scen_LDV_psgr_BAU)
 
 ```
 
-```{r}
-getData(scen_LDV_BAU, name = "vTechCap", merge = T) |> 
-  pivot_wider(names_from = "tech")
+```{r ldv_psgr_results}
+pDemand_LDV_psgr <- getData(
+  scen_LDV_psgr_BAU,
+  "pDemand", merge = T
+  )
 
-getData(scen_LDV_BAU, name = "vTechNewCap", merge = T) |> 
+getData(scen_LDV_psgr_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
-
+getData(scen_LDV_psgr_BAU, name = "vTechNewCap", merge = TRUE) 
+  # pivot_wider(names_from = "tech")
 ```
 
-### CO2 constraint
-```{r}
-getData(scen_LDV_BAU, name = "vBalance", merge = T, comm = "CO2") 
-
-CO2_CAP <- newConstraint(
-  name = "CO2_CAP",
-  desc = "Cap on CO2 emissions from transportation",
-  eq = "<=",
-  rhs = list(
-    year = c(2030, 2050, 2070),
-    rhs = c(200000, 1000, 1e-5)
-  ),
-  for.each = list(year = 2030:2070), # Cap total emission
-  variable = list(
-    variable = "vBalance",
-    for.sum = list(
-      comm = "CO2",
-      slice = NULL,
-      region = NULL
-    )
-  ),
-  defVal = Inf,
-  interpolation = "inter.forth"
+```{r ldv_psgr_levcost, message=FALSE, warning=FALSE}
+# ── Levelized cost comparison for all LDV-passenger technologies ─────────────
+ldv_psgr_techs <- Filter(
+  function(x) inherits(x, "technology"),
+  repo_LDV_psgr@data
 )
 
-
-```
-
-### Carbon CAP scenario
-```{r}
-scen_LDV_CAP <- interpolate(
-  ldv_model, 
-  name = "LDV_CAP", 
-  desc = "Scenario with CO2 emissions cap for Light Duty Vehicles (LDV)",
-  CO2_CAP
+lc_LDV_psgr <- ideea_levcost(
+  object   = ldv_psgr_techs,
+  group    = "o",
+  repo     = repo_LDV_psgr,
+  discount = 0.05,
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+  calendar = newCalendar(),
+  region   = "IND",
+  verbose  = FALSE
 )
-
-scen_LDV_CAP <- write_sc(scen_LDV_CAP)
-scen_LDV_CAP <- solve_scenario(scen_LDV_CAP)
-scen_LDV_CAP <- read_solution(scen_LDV_CAP)  
-
-summary(scen_LDV_CAP)
-
-getData(scen_LDV_CAP, name = "vBalance", merge = T, comm = "CO2")
-
-getData(scen_LDV_CAP, name = "vTechNewCap", merge = T) |> 
-  pivot_wider(names_from = "tech")
-
 ```
 
+```{r ldv_psgr_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)"}
+autoplot(lc_LDV_psgr, type = "npv")
+```
+
+```{r ldv_psgr_levcost_components, fig.cap="Levelized cost components by technology"}
+autoplot(lc_LDV_psgr, type = "components")
+```
+
+```{r ldv_psgr_sanity, message=FALSE, eval=FALSE}
+# ── Sanity check: 2024 fleet stock vs 2025 initial demand ────────────────────
+# Unit chain: stock [1000 veh] × cap2act [Mveh-km / 1000-veh-yr]
+#             × load [pax/veh] = MPkm/yr
+fleet_t0 <- tabs[["fleet"]][
+  tabs[["fleet"]][["branch"]] == "LDV_psgr" &
+  tabs[["fleet"]][["year"]]   == 2024L, ]
+tech_p <- tabs[["technologies"]][
+  tabs[["technologies"]][["branch"]] == "LDV_psgr",
+  c("name", "capacity_units", "avg_km_yr",
+    "load_per_vehicle_hwy", "load_per_vehicle_cty")]
+
+sanity <- merge(fleet_t0[, c("tech","stock")], tech_p,
+                by.x = "tech", by.y = "name")
+sanity$cap2act_Mvehkm  <- sanity$avg_km_yr * sanity$capacity_units / 1e6
+hwy_share <- 0.20  # must match hwy_share_psgr in build_transport_inputs.R
+sanity$service_MPkm <- round(
+  sanity$stock * sanity$cap2act_Mvehkm *
+  (hwy_share          * sanity$load_per_vehicle_hwy +
+   (1 - hwy_share)    * sanity$load_per_vehicle_cty))
+
+cat("=== LDV Passenger: fleet-to-service sanity check (2024 stock → MPkm) ===\n")
+print(sanity[, c("tech","stock","cap2act_Mvehkm","service_MPkm")])
+cat("\n  Total implied service from 2024 fleet:",
+    sum(sanity$service_MPkm, na.rm = TRUE), "MPkm\n")
+
+dem_t <- tabs[["demand"]][tabs[["demand"]][["branch"]] == "LDV_psgr", ]
+yr_cols   <- grep("^y[0-9]{4}$", names(dem_t), value = TRUE)
+dem_y2025 <- if ("y2025" %in% yr_cols) sum(dem_t$y2025, na.rm = TRUE) else NA_real_
+cat("  Initial demand (2025):              ", round(dem_y2025), "MPkm\n")
+cat("  Ratio (fleet service / demand):", round(sum(sanity$service_MPkm, na.rm=TRUE) /
+                                               dem_y2025, 3), "\n")
+cat("  (Ratio ~1 means stock is sized to meet demand; <<1 means demand >> existing fleet)\n")
+```
+
+---
+
+## LDV Freight model
+
+```{r ldv_frgt_build, results='hide'}
+repo_LDV_frgt <- build_branch_repo(tabs, "LDV_frgt")
+repo_LDV_frgt <- add(repo_LDV_frgt,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_LDV_frgt)
+```
+
+```{r ldv_frgt_model}
+model_LDV_frgt <- newModel(
+  name     = "LDV_frgt",
+  desc     = "LDV freight transport model",
+  data     = repo_LDV_frgt,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r ldv_frgt_solve}
+scen_LDV_frgt_BAU <- interpolate(
+  model_LDV_frgt,
+  name = "LDV_frgt_BAU",
+  desc = "LDV freight BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_LDV_frgt_BAU <- write_sc(scen_LDV_frgt_BAU)
+scen_LDV_frgt_BAU <- solve_scenario(scen_LDV_frgt_BAU)
+scen_LDV_frgt_BAU <- read_solution(scen_LDV_frgt_BAU)
+summary(scen_LDV_frgt_BAU)
+scen_LDV_frgt_BAU <- save_scenario(scen_LDV_frgt_BAU)
+```
+
+```{r ldv_frgt_results}
+getData(scen_LDV_frgt_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## HDV Passenger model
+
+```{r hdv_psgr_build, results='hide'}
+repo_HDV_psgr <- build_branch_repo(tabs, "HDV_psgr")
+repo_HDV_psgr <- add(repo_HDV_psgr,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_HDV_psgr)
+```
+
+```{r hdv_psgr_model}
+model_HDV_psgr <- newModel(
+  name     = "HDV_psgr",
+  desc     = "HDV passenger (bus) transport model",
+  data     = repo_HDV_psgr,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r hdv_psgr_solve}
+scen_HDV_psgr_BAU <- interpolate(
+  model_HDV_psgr,
+  name = "HDV_psgr_BAU",
+  desc = "HDV passenger BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_HDV_psgr_BAU <- write_sc(scen_HDV_psgr_BAU)
+scen_HDV_psgr_BAU <- solve_scenario(scen_HDV_psgr_BAU)
+scen_HDV_psgr_BAU <- read_solution(scen_HDV_psgr_BAU)
+summary(scen_HDV_psgr_BAU)
+scen_HDV_psgr_BAU <- save_scenario(scen_HDV_psgr_BAU)
+```
+
+```{r hdv_psgr_results}
+getData(scen_HDV_psgr_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## HDV Freight model
+
+```{r hdv_frgt_build, results='hide'}
+repo_HDV_frgt <- build_branch_repo(tabs, "HDV_frgt")
+repo_HDV_frgt <- add(repo_HDV_frgt,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_HDV_frgt)
+```
+
+```{r hdv_frgt_model}
+model_HDV_frgt <- newModel(
+  name     = "HDV_frgt",
+  desc     = "HDV freight (truck) transport model",
+  data     = repo_HDV_frgt,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r hdv_frgt_solve}
+scen_HDV_frgt_BAU <- interpolate(
+  model_HDV_frgt,
+  name = "HDV_frgt_BAU",
+  desc = "HDV freight BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_HDV_frgt_BAU <- write_sc(scen_HDV_frgt_BAU)
+scen_HDV_frgt_BAU <- solve_scenario(scen_HDV_frgt_BAU)
+scen_HDV_frgt_BAU <- read_solution(scen_HDV_frgt_BAU)
+summary(scen_HDV_frgt_BAU)
+scen_HDV_frgt_BAU <- save_scenario(scen_HDV_frgt_BAU)
+```
+
+```{r hdv_frgt_results}
+getData(scen_HDV_frgt_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## Aircraft Passenger model
+
+```{r aircraft_psgr_build, results='hide'}
+repo_aircraft_psgr <- build_branch_repo(tabs, "aircraft_psgr")
+repo_aircraft_psgr <- add(repo_aircraft_psgr,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_aircraft_psgr)
+```
+
+```{r aircraft_psgr_model}
+model_aircraft_psgr <- newModel(
+  name     = "aircraft_psgr",
+  desc     = "Aircraft passenger transport model",
+  data     = repo_aircraft_psgr,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r aircraft_psgr_solve}
+scen_aircraft_psgr_BAU <- interpolate(
+  model_aircraft_psgr,
+  name = "aircraft_psgr_BAU",
+  desc = "Aircraft passenger BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_aircraft_psgr_BAU <- write_sc(scen_aircraft_psgr_BAU)
+scen_aircraft_psgr_BAU <- solve_scenario(scen_aircraft_psgr_BAU)
+scen_aircraft_psgr_BAU <- read_solution(scen_aircraft_psgr_BAU)
+summary(scen_aircraft_psgr_BAU)
+scen_aircraft_psgr_BAU <- save_scenario(scen_aircraft_psgr_BAU)
+```
+
+```{r aircraft_psgr_results}
+getData(scen_aircraft_psgr_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## Aircraft Freight model
+
+```{r aircraft_frgt_build, results='hide'}
+repo_aircraft_frgt <- build_branch_repo(tabs, "aircraft_frgt")
+repo_aircraft_frgt <- add(repo_aircraft_frgt,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_aircraft_frgt)
+```
+
+```{r aircraft_frgt_model}
+model_aircraft_frgt <- newModel(
+  name     = "aircraft_frgt",
+  desc     = "Aircraft freight transport model",
+  data     = repo_aircraft_frgt,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r aircraft_frgt_solve}
+scen_aircraft_frgt_BAU <- interpolate(
+  model_aircraft_frgt,
+  name = "aircraft_frgt_BAU",
+  desc = "Aircraft freight BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_aircraft_frgt_BAU <- write_sc(scen_aircraft_frgt_BAU)
+scen_aircraft_frgt_BAU <- solve_scenario(scen_aircraft_frgt_BAU)
+scen_aircraft_frgt_BAU <- read_solution(scen_aircraft_frgt_BAU)
+summary(scen_aircraft_frgt_BAU)
+scen_aircraft_frgt_BAU <- save_scenario(scen_aircraft_frgt_BAU)
+```
+
+```{r aircraft_frgt_results}
+getData(scen_aircraft_frgt_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## Rail Passenger model
+
+```{r rail_psgr_build, results='hide'}
+repo_rail_psgr <- build_branch_repo(tabs, "rail_psgr")
+repo_rail_psgr <- add(repo_rail_psgr,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_rail_psgr)
+```
+
+```{r rail_psgr_model}
+model_rail_psgr <- newModel(
+  name     = "rail_psgr",
+  desc     = "Rail passenger transport model",
+  data     = repo_rail_psgr,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r rail_psgr_solve}
+scen_rail_psgr_BAU <- interpolate(
+  model_rail_psgr,
+  name = "rail_psgr_BAU",
+  desc = "Rail passenger BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_rail_psgr_BAU <- write_sc(scen_rail_psgr_BAU)
+scen_rail_psgr_BAU <- solve_scenario(scen_rail_psgr_BAU)
+scen_rail_psgr_BAU <- read_solution(scen_rail_psgr_BAU)
+summary(scen_rail_psgr_BAU)
+scen_rail_psgr_BAU <- save_scenario(scen_rail_psgr_BAU)
+```
+
+```{r rail_psgr_results}
+getData(scen_rail_psgr_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## Rail Freight model
+
+```{r rail_frgt_build, results='hide'}
+repo_rail_frgt <- build_branch_repo(tabs, "rail_frgt")
+repo_rail_frgt <- add(repo_rail_frgt,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_rail_frgt)
+```
+
+```{r rail_frgt_model}
+model_rail_frgt <- newModel(
+  name     = "rail_frgt",
+  desc     = "Rail freight transport model",
+  data     = repo_rail_frgt,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r rail_frgt_solve}
+scen_rail_frgt_BAU <- interpolate(
+  model_rail_frgt,
+  name = "rail_frgt_BAU",
+  desc = "Rail freight BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_rail_frgt_BAU <- write_sc(scen_rail_frgt_BAU)
+scen_rail_frgt_BAU <- solve_scenario(scen_rail_frgt_BAU)
+scen_rail_frgt_BAU <- read_solution(scen_rail_frgt_BAU)
+summary(scen_rail_frgt_BAU)
+scen_rail_frgt_BAU <- save_scenario(scen_rail_frgt_BAU)
+```
+
+```{r rail_frgt_results}
+getData(scen_rail_frgt_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## Ships Passenger model
+
+```{r ships_psgr_build, results='hide'}
+repo_ships_psgr <- build_branch_repo(tabs, "ships_psgr")
+repo_ships_psgr <- add(repo_ships_psgr,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_ships_psgr)
+```
+
+```{r ships_psgr_model}
+model_ships_psgr <- newModel(
+  name     = "ships_psgr",
+  desc     = "Ships passenger transport model",
+  data     = repo_ships_psgr,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r ships_psgr_solve}
+scen_ships_psgr_BAU <- interpolate(
+  model_ships_psgr,
+  name = "ships_psgr_BAU",
+  desc = "Ships passenger BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_ships_psgr_BAU <- write_sc(scen_ships_psgr_BAU)
+scen_ships_psgr_BAU <- solve_scenario(scen_ships_psgr_BAU)
+scen_ships_psgr_BAU <- read_solution(scen_ships_psgr_BAU)
+summary(scen_ships_psgr_BAU)
+scen_ships_psgr_BAU <- save_scenario(scen_ships_psgr_BAU)
+```
+
+```{r ships_psgr_results}
+getData(scen_ships_psgr_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## Ships Freight model
+
+```{r ships_frgt_build, results='hide'}
+repo_ships_frgt <- build_branch_repo(tabs, "ships_frgt")
+repo_ships_frgt <- add(repo_ships_frgt,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_ships_frgt)
+```
+
+```{r ships_frgt_model}
+model_ships_frgt <- newModel(
+  name     = "ships_frgt",
+  desc     = "Ships freight transport model",
+  data     = repo_ships_frgt,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r ships_frgt_solve}
+scen_ships_frgt_BAU <- interpolate(
+  model_ships_frgt,
+  name = "ships_frgt_BAU",
+  desc = "Ships freight BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_ships_frgt_BAU <- write_sc(scen_ships_frgt_BAU)
+scen_ships_frgt_BAU <- solve_scenario(scen_ships_frgt_BAU)
+scen_ships_frgt_BAU <- read_solution(scen_ships_frgt_BAU)
+summary(scen_ships_frgt_BAU)
+scen_ships_frgt_BAU <- save_scenario(scen_ships_frgt_BAU)
+```
+
+```{r ships_frgt_results}
+getData(scen_ships_frgt_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## Motorbikes Passenger model
+
+```{r motorbikes_psgr_build, results='hide'}
+repo_motorbikes_psgr <- build_branch_repo(tabs, "motorbikes_psgr")
+repo_motorbikes_psgr <- add(repo_motorbikes_psgr,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_motorbikes_psgr)
+```
+
+```{r motorbikes_psgr_model}
+model_motorbikes_psgr <- newModel(
+  name     = "motorbikes_psgr",
+  desc     = "Motorbikes passenger transport model",
+  data     = repo_motorbikes_psgr,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r motorbikes_psgr_solve}
+scen_motorbikes_psgr_BAU <- interpolate(
+  model_motorbikes_psgr,
+  name = "motorbikes_psgr_BAU",
+  desc = "Motorbikes passenger BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_motorbikes_psgr_BAU <- write_sc(scen_motorbikes_psgr_BAU)
+scen_motorbikes_psgr_BAU <- solve_scenario(scen_motorbikes_psgr_BAU)
+scen_motorbikes_psgr_BAU <- read_solution(scen_motorbikes_psgr_BAU)
+summary(scen_motorbikes_psgr_BAU)
+scen_motorbikes_psgr_BAU <- save_scenario(scen_motorbikes_psgr_BAU)
+```
+
+```{r motorbikes_psgr_results}
+getData(scen_motorbikes_psgr_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## Motorbikes Freight model
+
+```{r motorbikes_frgt_build, results='hide'}
+repo_motorbikes_frgt <- build_branch_repo(tabs, "motorbikes_frgt")
+repo_motorbikes_frgt <- add(repo_motorbikes_frgt,
+  ideea_modules$electricity$reg5$repo_comm@data$CO2,
+  ideea_modules$electricity$reg5$repo_comm@data$PM
+)
+names(repo_motorbikes_frgt)
+```
+
+```{r motorbikes_frgt_model}
+model_motorbikes_frgt <- newModel(
+  name     = "motorbikes_frgt",
+  desc     = "Motorbikes freight transport model",
+  data     = repo_motorbikes_frgt,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r motorbikes_frgt_solve}
+scen_motorbikes_frgt_BAU <- interpolate(
+  model_motorbikes_frgt,
+  name = "motorbikes_frgt_BAU",
+  desc = "Motorbikes freight BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_motorbikes_frgt_BAU <- write_sc(scen_motorbikes_frgt_BAU)
+scen_motorbikes_frgt_BAU <- solve_scenario(scen_motorbikes_frgt_BAU)
+scen_motorbikes_frgt_BAU <- read_solution(scen_motorbikes_frgt_BAU)
+summary(scen_motorbikes_frgt_BAU)
+scen_motorbikes_frgt_BAU <- save_scenario(scen_motorbikes_frgt_BAU)
+```
+
+```{r motorbikes_frgt_results}
+getData(scen_motorbikes_frgt_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech")
+```
+
+---
+
+## Combined transport model
+
+All branches solved and validated individually — combine into one model.
+
+```{r combined_build, results='hide'}
+# Merge all 12 branch repos into one.
+# Shared fuel commodities (GSL, DSL, …) are duplicated across branches —
+# overwrite = TRUE keeps the last version without error.
+repo_transport <- newRepository("repo_transport")
+for (br_repo in list(
+  repo_LDV_psgr, repo_LDV_frgt,
+  repo_HDV_psgr, repo_HDV_frgt,
+  repo_aircraft_psgr, repo_aircraft_frgt,
+  repo_rail_psgr, repo_rail_frgt,
+  repo_ships_psgr, repo_ships_frgt,
+  repo_motorbikes_psgr, repo_motorbikes_frgt
+)) {
+  repo_transport <- add(repo_transport, br_repo@data, overwrite = TRUE)
+}
+names(repo_transport)
+```
+
+```{r combined_model}
+model_transport <- newModel(
+  name     = "transport",
+  desc     = "Combined transport model — LDV + HDV passenger and freight",
+  data     = repo_transport,
+  region   = "IND",
+  debug    = data.frame(dummyImport = 1e5),
+  discount = 0.05,
+  calendar = newCalendar(),
+  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
+)
+```
+
+```{r combined_solve}
+scen_transport_BAU <- interpolate(
+  model_transport,
+  name = "transport_BAU",
+  desc = "Combined transport BAU scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_transport_BAU <- write_sc(scen_transport_BAU)
+scen_transport_BAU <- solve_scenario(scen_transport_BAU)
+scen_transport_BAU <- read_solution(scen_transport_BAU)
+summary(scen_transport_BAU)
+scen_transport_BAU <- save_scenario(scen_transport_BAU)
+```
+
+```{r combined_results}
+getData(scen_transport_BAU, name = "vTechCap", merge = TRUE) |>
+  pivot_wider(names_from = "tech") |> as.data.table()
+getData(scen_transport_BAU, name = "vBalance", merge = TRUE, comm = "CO2")
+```
+
+
+```{r, eval=FALSE}
+# Interactive explorer of scenarios
+shiny::runApp("R/transport_explorer")
+```
 
 
 

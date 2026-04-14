@@ -1,6 +1,6 @@
-# ideea_vehicle.R - to add to IDEEA lib
+# ideea_vehicle.R
 # Wrapper around energyRt::newTechnology() for road vehicles.
-# Accepts conventional physical parameters (fuel efficiency in common units,
+# Accepts human-readable physical parameters (fuel efficiency in common units,
 # annual km, occupancy, USD costs) and converts them to model-native quantities.
 
 # ── Default fuel energy content (MJ/L, LHV) ──────────────────────────────────
