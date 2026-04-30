@@ -29,25 +29,36 @@ source("R/read_transport_inputs.R")
 # library(energyRt.dev)
 ```
 
-Here we develop a transportation sector model for India with several sub-sectors or branches:  
-* road transport  
-  - light duty vehicles (LDV)  
-  - medium duty vehicles (MDV)
-  - heavy duty vehicles (HDV)  
-  - buses   
-    + city   
-    + inter-city   
-* rail transport  
-* electric city transport  
-  - trams and trolleys  
-  - metro and short-distance trains  
-* air transport  
-  - domestic and international   
-* water transport  
-  - domestic  
-  - international  
+Here we develop a transportation sector model for India. The structure
+mirrors the **Energy Policy Simulator (EPS)** transport module, which
+classifies vehicles by **type** (six categories) and **service**
+(passenger / freight). Each vehicle type carries a set of fuel/powertrain
+technologies (battery-electric, natural gas, gasoline, diesel, plug-in
+hybrid, LPG, hydrogen).
 
-All transportation services deliver two types of services: passenger transportation, and freight. 
+Branches modelled (matches EPS `Number of Vehicles` taxonomy and the
+`build_branch_repo()` calls below):
+
+| EPS vehicle type | Passenger branch    | Freight branch      |
+|------------------|---------------------|---------------------|
+| LDV              | `LDV_psgr`          | `LDV_frgt`          |
+| HDV              | `HDV_psgr`          | `HDV_frgt`          |
+| Aircraft         | `aircraft_psgr`     | `aircraft_frgt`     |
+| Rail             | `rail_psgr`         | `rail_frgt`         |
+| Ships            | `ships_psgr`        | `ships_frgt`        |
+| Motorbikes       | `motorbikes_psgr`   | `motorbikes_frgt`   |
+
+EPS reference data (vehicle stocks, new-vehicle prices, fuel economies,
+maintenance costs, etc.) lives in
+`Files for tranport sector reference - IDEEA/` as one folder per EPS
+variable code (e.g. `SYVbT/` = *Start Year Vehicles by Technology*,
+`BNVP/` = *Baseline New Vehicle Price*). These feed the consolidated
+input workbook `data/transport_inputs.xlsx`, which is read once by
+`read_transport_inputs()` and then sliced per-branch by
+`build_branch_repo()`.
+
+All branches share a common set of fuel commodities (GSL, DSL, CNG, LPG,
+ELCPJ, H2, plus blends) and emission commodities (CO2, PM).
 
 
 ## Road transport
@@ -736,6 +747,27 @@ scen_transport_BAU <- save_scenario(scen_transport_BAU)
 getData(scen_transport_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech") |> as.data.table()
 getData(scen_transport_BAU, name = "vBalance", merge = TRUE, comm = "CO2")
+```
+
+## CO2 cap
+```{r}
+CO2_CAP_transport <- ideea_modules$electricity[[1]]$CO2_CAP
+CO2_CAP_transport@rhs$rhs <- CO2_CAP_transport@rhs$rhs / 3
+class(CO2_CAP_transport)
+
+scen_transport_CAP <- interpolate(
+  model_transport,
+  CO2_CAP_transport,
+  name = "transport_CAP",
+  desc = "Combined transport CAP scenario",
+  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+)
+scen_transport_CAP <- write_sc(scen_transport_CAP)
+scen_transport_CAP <- solve_scenario(scen_transport_CAP)
+scen_transport_CAP <- read_solution(scen_transport_CAP)
+summary(scen_transport_CAP)
+scen_transport_CAP <- save_scenario(scen_transport_CAP)
+
 ```
 
 

@@ -1,0 +1,558 @@
+---
+title: "LDV Technical and Economic Parameters"
+subtitle: "Indicative ranges for the USA and India"
+author: "(LLM assembled)"
+# date: last-modified
+format:
+  revealjs:
+    theme: [default, styles.scss]
+    slide-number: true
+    progress: true
+    controls: true
+    transition: fade
+    transition-speed: fast
+    center: false
+    margin: 0.06
+    highlight-style: github
+    code-line-numbers: false
+footer: "WRI · IDEEA"
+logo: images/logo_wri.png
+execute:
+  echo: false
+  warning: false
+  message: false
+params:
+  currency: "both"       # "USD", "INR", or "both"
+  usd_to_inr: 84        # exchange rate; override with -P usd_to_inr:85
+  fig_base_currency: "INR"  # when currency=="both": "INR" (primary) or "USD" (primary)
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(scales)
+
+# ── Currency helpers ──────────────────────────────────────────────────────────
+.cur       <- params$currency           # "USD", "INR", or "both"
+.rate      <- params$usd_to_inr         # e.g. 84
+show_both  <- .cur == "both"
+cur_factor <- if (.cur == "INR") .rate else 1   # multiplier for cost values
+cur_sym    <- if (.cur == "INR") "\u20b9" else "$"  # ₹ or $
+
+# Figure-specific helpers: primary axis currency when currency == "both"
+.fig_base  <- params$fig_base_currency              # "INR" or "USD"
+fig_factor <- if (show_both) (if (.fig_base == "INR") .rate else 1) else cur_factor
+
+# Label for figure primary axis
+fig_lbl <- function(unit) {
+  if (!show_both) return(cur_lbl(unit))
+  if (.fig_base == "INR") gsub("USD", "\u20b9", unit) else unit
+}
+
+# Secondary (reference) axis added to figures when currency == "both"
+ref_axis <- function(primary_label) {
+  if (!show_both) return(waiver())
+  if (.fig_base == "INR") {
+    sec_axis(~ . / .rate, name = gsub("\u20b9", "USD", primary_label))
+  } else {
+    sec_axis(~ . * .rate, name = gsub("USD", "\u20b9", primary_label))
+  }
+}
+
+# Replace "USD" with "INR" (or "USD / INR") in unit labels
+cur_lbl <- function(unit) {
+  if (show_both) {
+    gsub("USD", paste0("USD / \u20b9INR (1 USD = ", .rate, " \u20b9)"), unit)
+  } else if (.cur == "INR") {
+    gsub("USD", "\u20b9", unit)
+  } else {
+    unit
+  }
+}
+
+# Format a numeric range with optional unit; applies currency scaling
+fmt_cur <- function(lo, hi, unit = "", scale = 1) {
+  if (show_both) {
+    usd  <- fmt_range(lo * scale, hi * scale, paste("USD", unit))
+    inr  <- fmt_range(lo * scale * .rate, hi * scale * .rate, paste0("\u20b9 ", unit))
+    paste0(usd, " / ", inr)
+  } else {
+    fmt_range(lo * scale * cur_factor, hi * scale * cur_factor, cur_lbl(unit))
+  }
+}
+
+fmt_range <- function(lo, hi, unit = "") {
+  ifelse(
+    is.na(lo) | is.na(hi),
+    "n/a",
+    paste0(
+      format(lo, trim = TRUE, big.mark = ","),
+      "\u2013",
+      format(hi, trim = TRUE, big.mark = ","),
+      ifelse(unit == "", "", paste0(" ", unit))
+    )
+  )
+}
+
+vehicle_order <- c(
+  "Gasoline ICE", "Diesel ICE", "Hybrid gasoline HEV", "Plug-in hybrid PHEV",
+  "CNG / LPG", "Battery electric BEV", "Hydrogen fuel cell FCEV"
+)
+
+# ── Technical data ────────────────────────────────────────────────────────────
+tech <- tibble::tribble(
+  ~vehicle,                    ~efficiency,                              ~ttw_efficiency,       ~life_km_lo, ~life_km_hi, ~weight_t_lo, ~weight_t_hi, ~passengers_lo, ~passengers_hi,
+  "Gasoline ICE",              "6\u20139 L/100 km",                      "20\u201325%",         150000, 250000, 1.2, 1.8, 1.5, 2.0,
+  "Diesel ICE",                "4\u20137 L/100 km",                      "25\u201330%",         200000, 300000, 1.3, 2.0, 1.5, 2.0,
+  "Hybrid gasoline HEV",       "3.5\u20135.5 L/100 km",                  "30\u201335%",         200000, 300000, 1.4, 1.9, 1.5, 2.0,
+  "Plug-in hybrid PHEV",       "2\u20134 L/100 km + 15\u201325 kWh/100 km", "35\u201345% blended", 200000, 300000, 1.6, 2.2, 1.5, 2.0,
+  "CNG / LPG",                 "5\u20138 kg CNG-eq./100 km",             "25\u201330%",         200000, 300000, 1.3, 2.0, 1.5, 2.0,
+  "Battery electric BEV",      "13\u201320 kWh/100 km",                  "75\u201390%",         200000, 300000, 1.6, 2.5, 1.5, 2.0,
+  "Hydrogen fuel cell FCEV",   "0.8\u20131.2 kg H2/100 km",              "50\u201360%",         200000, 300000, 1.8, 2.5, 1.5, 2.0
+) %>%
+  mutate(vehicle = factor(vehicle, levels = vehicle_order))
+
+# ── Economic data (values in USD) ─────────────────────────────────────────────
+capex <- tibble::tribble(
+  ~vehicle,                    ~country, ~capex_lo, ~capex_hi,
+  "Gasoline ICE",              "USA",    22000,  35000,
+  "Gasoline ICE",              "India",   6000,  15000,
+  "Diesel ICE",                "USA",    25000,  40000,
+  "Diesel ICE",                "India",   8000,  18000,
+  "Hybrid gasoline HEV",       "USA",    28000,  40000,
+  "Hybrid gasoline HEV",       "India",  15000,  30000,
+  "Plug-in hybrid PHEV",       "USA",    35000,  50000,
+  "Plug-in hybrid PHEV",       "India",  25000,  45000,
+  "CNG / LPG",                 "USA",    24000,  35000,
+  "CNG / LPG",                 "India",   7000,  16000,
+  "Battery electric BEV",      "USA",    30000,  55000,
+  "Battery electric BEV",      "India",  12000,  35000,
+  "Hydrogen fuel cell FCEV",   "USA",    50000,  70000,
+  "Hydrogen fuel cell FCEV",   "India",     NA,     NA
+) %>% mutate(vehicle = factor(vehicle, levels = vehicle_order))
+
+fom <- tibble::tribble(
+  ~vehicle,                    ~country, ~fom_lo, ~fom_hi,
+  "Gasoline ICE",              "USA",     800,  1500,
+  "Gasoline ICE",              "India",   200,   600,
+  "Diesel ICE",                "USA",     800,  1500,
+  "Diesel ICE",                "India",   200,   600,
+  "Hybrid gasoline HEV",       "USA",     700,  1300,
+  "Hybrid gasoline HEV",       "India",   250,   700,
+  "Plug-in hybrid PHEV",       "USA",     800,  1400,
+  "Plug-in hybrid PHEV",       "India",   300,   800,
+  "CNG / LPG",                 "USA",     800,  1300,
+  "CNG / LPG",                 "India",   250,   700,
+  "Battery electric BEV",      "USA",     400,   900,
+  "Battery electric BEV",      "India",   150,   500,
+  "Hydrogen fuel cell FCEV",   "USA",    1000,  2000,
+  "Hydrogen fuel cell FCEV",   "India",    NA,    NA
+) %>% mutate(vehicle = factor(vehicle, levels = vehicle_order))
+
+varcost <- tibble::tribble(
+  ~vehicle,                    ~country, ~var_lo, ~var_hi,
+  "Gasoline ICE",              "USA",    0.07, 0.12,
+  "Gasoline ICE",              "India",  0.08, 0.14,
+  "Diesel ICE",                "USA",    0.06, 0.10,
+  "Diesel ICE",                "India",  0.06, 0.11,
+  "Hybrid gasoline HEV",       "USA",    0.05, 0.09,
+  "Hybrid gasoline HEV",       "India",  0.06, 0.10,
+  "Plug-in hybrid PHEV",       "USA",    0.04, 0.10,
+  "Plug-in hybrid PHEV",       "India",  0.05, 0.09,
+  "CNG / LPG",                 "USA",    0.05, 0.09,
+  "CNG / LPG",                 "India",  0.04, 0.07,
+  "Battery electric BEV",      "USA",    0.02, 0.05,
+  "Battery electric BEV",      "India",  0.01, 0.03,
+  "Hydrogen fuel cell FCEV",   "USA",    0.10, 0.20,
+  "Hydrogen fuel cell FCEV",   "India",    NA,   NA
+) %>% mutate(vehicle = factor(vehicle, levels = vehicle_order))
+
+# Fuel prices — numeric (USD) to allow INR conversion
+fuel_prices <- tibble::tribble(
+  ~energy_carrier, ~country, ~price_lo, ~price_hi, ~unit,
+  "Gasoline",      "USA",    0.80, 1.20, "/L",
+  "Gasoline",      "India",  1.20, 1.50, "/L",
+  "Diesel",        "USA",    0.90, 1.30, "/L",
+  "Diesel",        "India",  1.00, 1.30, "/L",
+  "Electricity",   "USA",    0.12, 0.25, "/kWh",
+  "Electricity",   "India",  0.06, 0.12, "/kWh",
+  "CNG",           "USA",    0.80, 1.50, "/kg",
+  "CNG",           "India",  0.70, 1.00, "/kg",
+  "Hydrogen",      "USA",   12.00, 20.00, "/kg",
+  "Hydrogen",      "India",   NA,   NA,   "/kg"
+)
+
+# ── LCOM calculation ──────────────────────────────────────────────────────────
+crf <- function(discount_rate, lifetime_years) {
+  r <- discount_rate
+  n <- lifetime_years
+  r * (1 + r)^n / ((1 + r)^n - 1)
+}
+
+lcom_assumptions <- tibble::tribble(
+  ~country, ~annual_km, ~lifetime_years, ~discount_rate,
+  "USA",    15000,      12,              0.06,
+  "India",  10000,      12,              0.10
+) %>%
+  mutate(crf = crf(discount_rate, lifetime_years))
+
+lcom <- capex %>%
+  left_join(fom,      by = c("vehicle", "country")) %>%
+  left_join(varcost,  by = c("vehicle", "country")) %>%
+  left_join(lcom_assumptions %>% select(country, annual_km, crf), by = "country") %>%
+  mutate(
+    capex_mid        = (capex_lo + capex_hi) / 2,
+    fom_mid          = (fom_lo   + fom_hi)   / 2,
+    var_mid          = (var_lo   + var_hi)   / 2,
+    capex_component  = capex_mid * crf / annual_km,
+    fom_component    = fom_mid   / annual_km,
+    variable_component = var_mid,
+    lcom_mid = capex_component + fom_component + variable_component,
+    lcom_lo  = capex_lo * crf / annual_km + fom_lo / annual_km + var_lo,
+    lcom_hi  = capex_hi * crf / annual_km + fom_hi / annual_km + var_hi,
+    vehicle  = factor(vehicle, levels = vehicle_order)
+  )
+```
+
+## Scope {.smaller}
+
+| Code | Technology |
+|------|-----------|
+| **Gasoline ICE** | Gasoline internal combustion engine vehicle |
+| **Diesel ICE** | Diesel internal combustion engine vehicle |
+| **HEV** | Hybrid electric vehicle (gasoline) |
+| **PHEV** | Plug-in hybrid electric vehicle |
+| **CNG / LPG** | Compressed natural gas / liquefied petroleum gas |
+| **BEV** | Battery electric vehicle |
+| **FCEV** | Hydrogen fuel-cell electric vehicle |
+
+Countries covered: **USA** and **India**
+
+---
+
+## Technical parameters {.scrollable .smaller}
+
+```{r tech-table}
+tech_table <- tech %>%
+  mutate(
+    `Lifespan`           = fmt_range(life_km_lo / 1000, life_km_hi / 1000, "thousand km"),
+    `Weight`             = fmt_range(weight_t_lo, weight_t_hi, "t"),
+    `Passengers/vehicle` = fmt_range(passengers_lo, passengers_hi, "persons")
+  ) %>%
+  select(
+    Vehicle                    = vehicle,
+    `Energy efficiency`        = efficiency,
+    `Tank-to-wheel efficiency` = ttw_efficiency,
+    `Lifespan`,
+    `Weight`,
+    `Passengers/vehicle`
+  )
+
+kable(tech_table, caption = "Indicative technical parameters by LDV technology.") %>%
+  kable_styling(font_size = 13, bootstrap_options = c("striped", "condensed"), full_width = TRUE)
+```
+
+---
+
+## Vehicle lifetime
+
+```{r lifespan-figure, fig.height=4.5, fig.width=8}
+tech %>%
+  ggplot(aes(y = vehicle)) +
+  geom_linerange(aes(xmin = life_km_lo / 1000, xmax = life_km_hi / 1000),
+                 linewidth = 5, colour = "#1f78b4") +
+  labs(x = "Vehicle lifetime, thousand km", y = NULL,
+       title = "Indicative lifetime range by technology") +
+  theme_minimal(base_size = 13)
+```
+
+---
+
+## Vehicle weight
+
+```{r weight-figure, fig.height=4.5, fig.width=8}
+tech %>%
+  ggplot(aes(y = vehicle)) +
+  geom_linerange(aes(xmin = weight_t_lo, xmax = weight_t_hi),
+                 linewidth = 5, colour = "#33a02c") +
+  labs(x = "Curb weight, tonnes", y = NULL,
+       title = "Indicative weight range by technology") +
+  theme_minimal(base_size = 13)
+```
+
+---
+
+## Investment cost (CAPEX) {.scrollable .smaller}
+
+```{r capex-table}
+capex_tbl <- capex %>%
+  mutate(`Investment cost` = fmt_cur(capex_lo / 1000, capex_hi / 1000,
+                                     ifelse(.cur == "INR", "thousand \u20b9/vehicle",
+                                            "thousand USD/vehicle"))) %>%
+  select(Vehicle = vehicle, Country = country, `Investment cost`) %>%
+  pivot_wider(names_from = Country, values_from = `Investment cost`)
+
+kable(capex_tbl, caption = "Investment cost (thousand per vehicle)") %>%
+  kable_styling(font_size = 12, bootstrap_options = c("striped", "condensed"), full_width = TRUE)
+```
+
+```{r capex-figure, fig.height=3, fig.width=9}
+.xl <- paste("Investment cost, thousand", fig_lbl("USD"), "/ vehicle")
+capex %>%
+  filter(!is.na(capex_lo)) %>%
+  mutate(lo = capex_lo * fig_factor / 1000,
+         hi = capex_hi * fig_factor / 1000) %>%
+  ggplot(aes(y = vehicle)) +
+  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 4, colour = "#e31a1c") +
+  facet_wrap(~country) +
+  (if (show_both) scale_x_continuous(sec.axis = ref_axis(.xl)) else NULL) +
+  labs(x = .xl, y = NULL) +
+  theme_minimal(base_size = 10)
+```
+
+---
+
+## Fixed O&M cost {.scrollable .smaller}
+
+```{r fom-table}
+fom_tbl <- fom %>%
+  mutate(`Fixed O&M` = fmt_cur(fom_lo, fom_hi,
+                               ifelse(.cur == "INR", "\u20b9/year", "USD/year"))) %>%
+  select(Vehicle = vehicle, Country = country, `Fixed O&M`) %>%
+  pivot_wider(names_from = Country, values_from = `Fixed O&M`)
+
+kable(fom_tbl, caption = "Fixed annual O&M cost per vehicle") %>%
+  kable_styling(font_size = 12, bootstrap_options = c("striped", "condensed"), full_width = TRUE)
+```
+
+```{r fom-figure, fig.height=3, fig.width=9}
+.xl <- paste("Fixed O&M,", fig_lbl("USD"), "/ year")
+fom %>%
+  filter(!is.na(fom_lo)) %>%
+  mutate(lo = fom_lo * fig_factor,
+         hi = fom_hi * fig_factor) %>%
+  ggplot(aes(y = vehicle)) +
+  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 4, colour = "#ff7f00") +
+  facet_wrap(~country) +
+  (if (show_both) scale_x_continuous(sec.axis = ref_axis(.xl)) else NULL) +
+  labs(x = .xl, y = NULL) +
+  theme_minimal(base_size = 10)
+```
+
+---
+
+## Fuel & energy prices {.smaller}
+
+```{r fuel-price-table}
+fp_display <- fuel_prices %>%
+  rowwise() %>%
+  mutate(
+    `Price range` = if (is.na(price_lo)) {
+      "not commercial"
+    } else if (show_both) {
+      paste0(
+        fmt_range(price_lo, price_hi, paste0("USD", unit)),
+        " / ",
+        fmt_range(price_lo * .rate, price_hi * .rate, paste0("\u20b9", unit))
+      )
+    } else {
+      fmt_range(price_lo * cur_factor, price_hi * cur_factor,
+                paste0(cur_sym, unit))
+    }
+  ) %>%
+  ungroup() %>%
+  select(`Energy carrier` = energy_carrier, Country = country, `Price range`)
+
+kable(fp_display,
+      caption = paste0("Indicative fuel and energy price ranges",
+                       if (.cur != "USD") paste0(" (1 USD = \u20b9", .rate, ")") else "")) %>%
+  kable_styling(font_size = 13, bootstrap_options = c("striped", "condensed"), full_width = TRUE)
+```
+
+---
+
+## Variable cost per km {.scrollable .smaller}
+
+```{r varcost-table}
+vc_tbl <- varcost %>%
+  mutate(`Variable cost` = fmt_cur(var_lo, var_hi,
+                                   ifelse(.cur == "INR", "\u20b9/km", "USD/km"))) %>%
+  select(Vehicle = vehicle, Country = country, `Variable cost`) %>%
+  pivot_wider(names_from = Country, values_from = `Variable cost`)
+
+kable(vc_tbl, caption = "Fuel/energy variable cost per vehicle-km") %>%
+  kable_styling(font_size = 12, bootstrap_options = c("striped", "condensed"), full_width = TRUE)
+```
+
+```{r varcost-figure, fig.height=3, fig.width=9}
+.xl <- paste("Variable cost,", fig_lbl("USD"), "/ km")
+varcost %>%
+  filter(!is.na(var_lo)) %>%
+  mutate(lo = var_lo * fig_factor,
+         hi = var_hi * fig_factor) %>%
+  ggplot(aes(y = vehicle)) +
+  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 4, colour = "#6a3d9a") +
+  facet_wrap(~country) +
+  (if (show_both) scale_x_continuous(sec.axis = ref_axis(.xl)) else NULL) +
+  labs(x = .xl, y = NULL) +
+  theme_minimal(base_size = 10)
+```
+
+---
+
+## Key modeling implications {.smaller}
+
+**Dominant cost driver by drivetrain**
+
+| Technology | Dominant driver |
+|-----------|----------------|
+| **ICE gasoline / diesel** | Fuel cost |
+| **HEV / PHEV** | Fuel economy, electric driving share, annual mileage |
+| **CNG / LPG** | Local fuel price and refueling-network access |
+| **BEV** | Capital cost, battery lifetime, electricity tariff, annual mileage |
+| **FCEV** | Hydrogen price (current market conditions) |
+
+**Country-level sensitivities**
+
+- **India** has higher discount rates (8–15 %) → capital-intensive technologies (BEV, PHEV) face greater cost penalty than in the USA
+- BEV has a **strong electricity cost advantage** in India ($0.06–0.12/kWh vs $0.12–0.25/kWh in the USA)
+- Vehicle-size bias: USA leans toward larger vehicles and SUVs; India toward smaller, lower-cost vehicles
+
+---
+
+## Country modeling assumptions {.smaller}
+
+```{r country-assumptions}
+country_assumptions <- tibble::tribble(
+  ~Parameter,               ~USA,                         ~India,
+  "Annual mileage",         "12\u201320 thousand km/year",  "8\u201315 thousand km/year",
+  "Discount rate",          "5\u20138%",                    "8\u201315%",
+  "Fuel cost pressure",     "Moderate",                   "High",
+  "Electricity advantage",  "Moderate",                   "Strong",
+  "Capital-cost sensitivity","Medium",                    "Very high",
+  "Vehicle-size bias",      "Larger vehicles and SUVs",   "Smaller and lower-cost vehicles"
+)
+
+kable(country_assumptions,
+      caption = "Suggested country-level assumptions for levelized cost analysis.") %>%
+  kable_styling(font_size = 13, bootstrap_options = c("striped", "condensed"), full_width = TRUE)
+```
+
+Baseline used below: **USA** — 15 000 km/year, 12 years, 6 % discount rate; **India** — 10 000 km/year, 12 years, 10 % discount rate.
+
+---
+---
+
+## LCOM results {.scrollable .smaller}
+
+```{r lcom-results-table}
+cur_unit <- if (.cur == "INR") "\u20b9/km" else "USD/km"
+
+lcom_tbl <- lcom %>%
+  filter(!is.na(lcom_mid)) %>%
+  mutate(
+    `LCOM range`      = fmt_cur(lcom_lo, lcom_hi, cur_unit),
+    `Baseline`        = fmt_cur(lcom_mid, lcom_mid, cur_unit) %>%
+                          gsub("\u2013.*", "", .),  # midpoint only
+    `Capital`         = round(capex_component * cur_factor, 3),
+    `Fixed O&M`       = round(fom_component   * cur_factor, 3),
+    `Fuel / variable` = round(variable_component * cur_factor, 3)
+  ) %>%
+  select(Vehicle = vehicle, Country = country,
+         `LCOM range`, `Baseline`,
+         `Capital`, `Fixed O&M`, `Fuel / variable`) %>%
+  arrange(Country, `Baseline`)
+
+kable(lcom_tbl,
+      caption = paste0("Illustrative total LCOM by vehicle type and country (",
+                       cur_unit, ").")) %>%
+  kable_styling(font_size = 12, bootstrap_options = c("striped", "condensed"), full_width = TRUE)
+```
+
+---
+
+## LCOM comparison
+
+```{r lcom-range-figure, fig.height=4.8, fig.width=9}
+.xl <- paste("Levelized cost of mobility,", fig_lbl("USD"), "/ km")
+lcom %>%
+  filter(!is.na(lcom_mid)) %>%
+  mutate(
+    lo  = lcom_lo  * fig_factor,
+    hi  = lcom_hi  * fig_factor,
+    mid = lcom_mid * fig_factor
+  ) %>%
+  ggplot(aes(y = vehicle)) +
+  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = 4, colour = "#1f78b4", alpha = 0.6) +
+  geom_point(aes(x = mid), size = 3, colour = "#e31a1c") +
+  facet_wrap(~country) +
+  (if (show_both) scale_x_continuous(sec.axis = ref_axis(.xl)) else NULL) +
+  labs(x = .xl, y = NULL, title = "Total LCOM range (bar) and baseline midpoint (dot)") +
+  theme_minimal(base_size = 12)
+```
+
+---
+
+## LCOM cost decomposition
+
+```{r lcom-decomp-figure, fig.height=4.8, fig.width=9}
+.xl <- paste("Cost component,", fig_lbl("USD"), "/ km")
+lcom %>%
+  filter(!is.na(lcom_mid)) %>%
+  select(vehicle, country,
+         Capital         = capex_component,
+         `Fixed O&M`     = fom_component,
+         `Fuel / variable` = variable_component) %>%
+  pivot_longer(cols = c(Capital, `Fixed O&M`, `Fuel / variable`),
+               names_to = "component", values_to = "value") %>%
+  mutate(value = value * fig_factor) %>%
+  ggplot(aes(x = value, y = vehicle, fill = component)) +
+  geom_col() +
+  facet_wrap(~country) +
+  scale_fill_brewer(palette = "Set1") +
+  (if (show_both) scale_x_continuous(sec.axis = ref_axis(.xl)) else NULL) +
+  labs(
+    x     = .xl,
+    y     = NULL,
+    fill  = NULL,
+    title = "Baseline LCOM decomposition by cost component"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom")
+```
+
+---
+
+## Technology ranking {.smaller}
+
+```{r lcom-ranking-table}
+lcom_rank <- lcom %>%
+  filter(!is.na(lcom_mid)) %>%
+  group_by(country) %>%
+  arrange(lcom_mid, .by_group = TRUE) %>%
+  mutate(rank = row_number()) %>%
+  ungroup() %>%
+  mutate(
+    `Baseline LCOM` = paste0(
+      format(round(lcom_mid * cur_factor, 3), nsmall = 3),
+      " ", if (.cur == "INR") "\u20b9" else "$", "/km"
+    )
+  ) %>%
+  select(Country = country, Rank = rank, Vehicle = vehicle, `Baseline LCOM`)
+
+kable(lcom_rank,
+      caption = paste0("Technology ranking by baseline LCOM",
+                       if (.cur != "USD") paste0(" (1 USD = \u20b9", .rate, ")") else "")) %>%
+  kable_styling(font_size = 13, bootstrap_options = c("striped", "condensed"), full_width = TRUE)
+```
+
+::: {.callout-note appearance="minimal"}
+Results are highly sensitive to annual mileage — higher utilisation favours capital-intensive BEV and PHEV.
+:::
+
+
