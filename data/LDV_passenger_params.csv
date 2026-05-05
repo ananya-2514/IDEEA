@@ -31,5 +31,5 @@ LDV_CNG,Compressed Natural Gas Light Duty Vehicle,CNG,CNG,,NA,2.8,3.5,MJ/km,1000
 LDV_LPG,LPG (Autogas) Light Duty Vehicle,LPG,LPG,,NA,3.5,4.5,MJ/km,10000,1000,2,3,0.4,0.8,16500,500,10,images/techs/LDV-PLG.png
 LDV_HYB,Gasoline Hybrid Light Duty Vehicle,GSL,GSL,,NA,6,8,L/100km,10000,1000,2,3,0.4,0.8,20000,500,10,images/techs/LDV-hybrid.png
 LDV_PHEV,Plug-in Hybrid Light Duty Vehicle (combined cycle),GSL|ELCPJ,GSL,,NA,4.5,6,L/100km,10000,1000,2,3,0.4,0.8,25000,500,10,images/techs/LDV-PHEV.png
-LDV_EV,Battery Electric Light Duty Vehicle,ELCPJ,,,,6,4.5,km/kWh,10000,1000,2,3,0.4,0.8,30000,500,10,images/techs/LDV-electric.png
+LDV_BEV,Battery Electric Light Duty Vehicle,ELCPJ,,,,6,4.5,km/kWh,10000,1000,2,3,0.4,0.8,30000,500,10,images/techs/LDV-electric.png
 LDV_H2,Hydrogen Fuel Cell Light Duty Vehicle,H2,,,,0.9,1.2,MJ/km,10000,1000,2,3,0.4,0.8,45000,500,10,images/techs/LDV-hydrogen.png
