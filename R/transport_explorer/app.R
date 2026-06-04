@@ -70,10 +70,33 @@ apply_filters <- function(df, prefix, input) {
 }
 
 # ── Palette helpers ───────────────────────────────────────────────────────────
-PALETTE_CHOICES <- c("Default", "Viridis", "Magma", "Plasma",
-                     "Inferno", "Cividis", "Turbo")
+PALETTE_CHOICES <- list(
+  "Transport"      = c("Fuels" = "Fuels", "Branches" = "Branches",
+                       "Vehicle type" = "Vehicle type"),
+  "Viridis family" = c("Default" = "Default", "Viridis" = "Viridis",
+                       "Magma" = "Magma", "Plasma" = "Plasma",
+                       "Inferno" = "Inferno", "Cividis" = "Cividis",
+                       "Turbo" = "Turbo")
+)
 
-apply_palette <- function(p, palette, aes_type = "fill") {
+# apply_palette: add a colour/fill scale to a ggplot.
+# fill_values: the actual fill-column data vector (needed for transport schemes).
+apply_palette <- function(p, palette, aes_type = "fill", fill_values = NULL) {
+  if (palette %in% c("Fuels", "Branches", "Vehicle type")) {
+    cfg <- switch(palette,
+      "Fuels"        = FUEL_COLOUR_CONFIG,
+      "Branches"     = BRANCH_COLOUR_CONFIG,
+      "Vehicle type" = VEHICLE_TYPE_COLOUR_CONFIG
+    )
+    if (!is.null(fill_values) && length(fill_values) > 0) {
+      cols <- resolve_colours(fill_values, cfg)
+      if (aes_type == "fill")
+        return(p + ggplot2::scale_fill_manual(values = cols))
+      else
+        return(p + ggplot2::scale_color_manual(values = cols))
+    }
+    return(p)
+  }
   if (palette == "Default") return(p)
   opt <- tolower(palette)
   if (aes_type == "fill")
@@ -165,6 +188,8 @@ if (!exists("ideea_levcost")) {
 
 # Sankey / riverplot helper
 suppressWarnings(try(source("R/sankey_transport.R"), silent = TRUE))
+# Fixed transport colour palettes (FUEL/BRANCH/VEHICLE_TYPE configs + resolve_colours)
+suppressWarnings(try(source("R/transport_explorer/colour_config.R"), silent = TRUE))
 
 # ── Helper: scan a directory for solved scenarios ──────────────────────────────
 # An energyRt scenario is solved when its directory contains "scen.RData".
@@ -275,15 +300,34 @@ ui <- page_sidebar(
     nav_panel(
       "Capacity",
       card(
-        card_header("Technology capacity by year  [vTechCap]"),
+        card_header("Capacity by year"),
         layout_columns(
-          col_widths = c(3, 3, 2, 1, 3),
+          col_widths = c(4, 3, 3, 2),
+          selectInput("cap_var", "Variable",
+                      choices = c(
+                        "Technology"   = "",
+                        "vTechCap"              = "vTechCap",
+                        "vTechNewCap"           = "vTechNewCap",
+                        "vTechRetiredNewCap"    = "vTechRetiredNewCap",
+                        "vTechRetiredStock"     = "vTechRetiredStock",
+                        "vTechRetiredStockCum"  = "vTechRetiredStockCum",
+                        "Storage"      = "",
+                        "vStorageCap"           = "vStorageCap",
+                        "vStorageNewCap"        = "vStorageNewCap",
+                        "Trade"        = "",
+                        "vTradeCap"             = "vTradeCap",
+                        "vTradeNewCap"          = "vTradeNewCap"
+                      ),
+                      selected = "vTechCap"),
           selectInput("cap_fill",   "Colour by",
                       choices = c("process", "tech", "scenario"), selected = "process"),
           selectInput("cap_facet",  "Facet by",
                       choices = c("none", "scenario", "process", "tech", "region"), selected = "none"),
           selectInput("cap_type",   "Chart type",
-                      choices = c("Stacked bar", "Line"), selected = "Stacked bar"),
+                      choices = c("Stacked bar", "Line"), selected = "Stacked bar")
+        ),
+        layout_columns(
+          col_widths = c(1, 11),
           div(class = "pt-4",
               checkboxInput("cap_legend", "Legend", value = TRUE)),
           selectInput("cap_pal",    "Palette", PALETTE_CHOICES, "Default")
@@ -659,16 +703,19 @@ server <- function(input, output, session) {
         geom_line(linewidth = 1) + geom_point() +
         labs(x = "Year", y = "Demand", colour = grp)
     }
-    p <- apply_palette(p, input$dem_pal, aes_t) + make_theme(input$dem_legend)
+    p <- apply_palette(p, input$dem_pal, aes_t, fill_values = df[[grp]]) + make_theme(input$dem_legend)
     p <- make_facet(p, input$dem_facet, df)
     to_plotly(p)
   })
 
   # ── Capacity tab ─────────────────────────────────────────────────────────────
-  cap_raw <- eventReactive(list(refresh_counter(), input$global_years), {
+  cap_raw <- eventReactive(
+    list(refresh_counter(), input$cap_var, input$global_years), {
     scens <- active_scens()
     if (length(scens) == 0) return(NULL)
-    df <- tryCatch(getData(scens, name = "vTechCap", merge = TRUE, process = TRUE),
+    var <- input$cap_var %||% "vTechCap"
+    if (!nzchar(var)) var <- "vTechCap"   # guard against optgroup separators
+    df <- tryCatch(getData(scens, name = var, merge = TRUE, process = TRUE),
                    error = function(e) NULL)
     apply_global_years(df)
   })
@@ -697,18 +744,19 @@ server <- function(input, output, session) {
     df  <- apply_filters(df, "cap", input)
     grp <- if (input$cap_fill %in% names(df)) input$cap_fill else names(df)[1]
     aes_t <- if (input$cap_type == "Stacked bar") "fill" else "colour"
+    ylab  <- input$cap_var %||% "Capacity"
 
     p <- if (input$cap_type == "Stacked bar") {
       ggplot(df, aes(x = factor(year), y = value, fill = .data[[grp]])) +
         geom_col(position = "stack") +
-        labs(x = "Year", y = "Capacity", fill = grp)
+        labs(x = "Year", y = ylab, fill = grp)
     } else {
       ggplot(df, aes(x = year, y = value, colour = .data[[grp]],
                      group = .data[[grp]])) +
         geom_line(linewidth = 1) + geom_point() +
-        labs(x = "Year", y = "Capacity", colour = grp)
+        labs(x = "Year", y = ylab, colour = grp)
     }
-    p <- apply_palette(p, input$cap_pal, aes_t) + make_theme(input$cap_legend)
+    p <- apply_palette(p, input$cap_pal, aes_t, fill_values = df[[grp]]) + make_theme(input$cap_legend)
     p <- make_facet(p, input$cap_facet, df)
     to_plotly(p)
   })
@@ -794,7 +842,7 @@ server <- function(input, output, session) {
         geom_line(linewidth = 1) + geom_point() +
         labs(x = "Year", y = ylab, colour = grp)
     }
-    p <- apply_palette(p, input$flows_pal, aes_t) + make_theme(input$flows_legend)
+    p <- apply_palette(p, input$flows_pal, aes_t, fill_values = df[[grp]]) + make_theme(input$flows_legend)
     p <- make_facet(p, input$flows_facet, df)
     to_plotly(p)
   })
@@ -837,7 +885,7 @@ server <- function(input, output, session) {
         geom_col() +
         coord_flip() +
         labs(x = x_col, y = input$costs_var, fill = x_col)
-      p <- apply_palette(p, input$costs_pal, "fill") +
+      p <- apply_palette(p, input$costs_pal, "fill", fill_values = df[[x_col]]) +
         theme_bw(base_size = 13) +
         theme(legend.position = if (isTRUE(input$costs_legend)) "right" else "none")
       return(to_plotly(p))
@@ -858,7 +906,7 @@ server <- function(input, output, session) {
         geom_line(linewidth = 1) + geom_point() +
         labs(x = "Year", y = input$costs_var, colour = grp)
     }
-    p <- apply_palette(p, input$costs_pal, aes_t) + make_theme(input$costs_legend)
+    p <- apply_palette(p, input$costs_pal, aes_t, fill_values = df[[grp]]) + make_theme(input$costs_legend)
     p <- make_facet(p, input$costs_facet, df)
     to_plotly(p)
   })
@@ -1082,7 +1130,10 @@ server <- function(input, output, session) {
         p <- p + ggplot2::coord_flip(ylim = c(0, y_max * 1.02))
       }
     }
-    p <- apply_palette(p, input$proc_pal %||% "Default", pal_aes) + make_theme(TRUE)
+    proc_fill_col  <- if (view == "lcoe") "tech" else "component"
+    proc_fill_vals <- if (proc_fill_col %in% names(df)) df[[proc_fill_col]] else NULL
+    p <- apply_palette(p, input$proc_pal %||% "Default", pal_aes,
+                       fill_values = proc_fill_vals) + make_theme(TRUE)
     plotly::ggplotly(p, tooltip = c("x", "y", "fill")) |>
       plotly::layout(legend = list(itemclick = "toggle",
                                    itemdoubleclick = "toggleothers"))

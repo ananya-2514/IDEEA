@@ -6,7 +6,14 @@ output: html_document
 params:
   # true → model refueling/charging infrastructure as INFR_* newTechnology objects
   # (with vehicle cinp2ainp linkage) instead of unconstrained newSupply (default).
-  infra_as_tech: false
+  infra_as_tech: true
+  # infra_as_tech: false  # true → model infra as unconstrained SUP_INFR_* supply objects while still
+  # linking vehicle fuel inputs to infra service commodities via cinp2ainp aeff rows.
+  # Mutually exclusive with infra_as_tech (infra_as_tech takes precedence if both true).
+  # infra_as_supply: true
+  infra_as_supply: false
+  # true → run ideea_levcost() chunks for all branches (can be slow).
+  eval_levcost: false
 ---
 
 ```{r, include = FALSE}
@@ -26,6 +33,7 @@ source("R/ideea_report.r")
 source("R/ideea_vehicle.R")
 source("R/ideea_levcost.R")
 source("R/read_transport_inputs.R")
+eval_levcost <- isTRUE(params$eval_levcost)
 # library(energyRt.dev)
 ```
 
@@ -76,7 +84,8 @@ LDV or cars are modeled to deliver two types of transportation services, based o
 
 ```{r shared_setup}
 tabs <- read_transport_inputs("data/transport_inputs.xlsx")
-options(infra_as_tech = isTRUE(params$infra_as_tech))  # propagates to all build_branch_repo() calls
+options(infra_as_tech   = isTRUE(params$infra_as_tech),    # propagates to all build_branch_repo() calls
+        infra_as_supply = isTRUE(params$infra_as_supply))
 names(tabs)
 
 set_default_solver(solver_options$glpk)
@@ -93,6 +102,20 @@ repo_LDV_psgr <- add(repo_LDV_psgr,
   ideea_modules$electricity$reg5$repo_comm@data$PM
 )
 names(repo_LDV_psgr)
+repo_LDV_psgr@data$LDV_E10 |> draw()
+repo_LDV_psgr@data$INFR_PETRO_REFUEL |> draw()
+repo_LDV_psgr@data$SUP_CNG
+
+# repo_LDV_psgr@data$INFR_PETRO_REFUEL |> design()
+# repo_LDV_psgr@data$INFR_PETRO_REFUEL <- a
+
+# repo_LDV_psgr@data$INFR_EV_CHARGING <- NULL
+# repo_LDV_psgr@data$INFR_PETRO_REFUEL <- NULL
+# repo_LDV_psgr@data$INFR_CNG_REFUEL <- NULL
+# repo_LDV_psgr@data$INFR_LPG_REFUEL <- NULL
+
+# repo_LDV_psgr@data$INFR_PETRO_REFUEL 
+
 ```
 
 ```{r ldv_psgr_model}
@@ -109,11 +132,11 @@ model_LDV_psgr <- newModel(
 ```
 
 ```{r ldv_psgr_solve}
-scen_LDV_psgr_BAU <- interpolate(
+scen_LDV_psgr_BAU <- energyRt::interpolate(
   model_LDV_psgr,
   name = "LDV_psgr_BAU",
-  desc = "LDV passenger BAU scenario",
-  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+  desc = "LDV passenger BAU scenario"
+  # debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
 )
 scen_LDV_psgr_BAU <- write_sc(scen_LDV_psgr_BAU)
 scen_LDV_psgr_BAU <- solve_scenario(scen_LDV_psgr_BAU)
@@ -135,66 +158,34 @@ getData(scen_LDV_psgr_BAU, name = "vTechNewCap", merge = TRUE)
   # pivot_wider(names_from = "tech")
 ```
 
-```{r ldv_psgr_levcost, message=FALSE, warning=FALSE}
+```{r ldv_psgr_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
 # ── Levelized cost comparison for all LDV-passenger technologies ─────────────
-ldv_psgr_techs <- Filter(
-  function(x) inherits(x, "technology"),
-  repo_LDV_psgr@data
-)
+if (isTRUE(eval_levcost)) {
+  ldv_psgr_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_LDV_psgr@data
+  )
+  ldv_psgr_techs |> names()
 
-lc_LDV_psgr <- ideea_levcost(
-  object   = ldv_psgr_techs,
-  group    = "o",
-  repo     = repo_LDV_psgr,
-  discount = 0.05,
-  horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
-  calendar = newCalendar(),
-  region   = "IND",
-  verbose  = FALSE
-)
+  lc_LDV_psgr <- ideea_levcost(
+    object   = ldv_psgr_techs,
+    group    = "o",
+    repo     = repo_LDV_psgr,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
 ```
 
-```{r ldv_psgr_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)"}
-autoplot(lc_LDV_psgr, type = "npv")
+```{r ldv_psgr_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_LDV_psgr, type = "npv")
 ```
 
-```{r ldv_psgr_levcost_components, fig.cap="Levelized cost components by technology"}
-autoplot(lc_LDV_psgr, type = "components")
-```
-
-```{r ldv_psgr_sanity, message=FALSE, eval=FALSE}
-# ── Sanity check: 2024 fleet stock vs 2025 initial demand ────────────────────
-# Unit chain: stock [1000 veh] × cap2act [Mveh-km / 1000-veh-yr]
-#             × load [pax/veh] = MPkm/yr
-fleet_t0 <- tabs[["fleet"]][
-  tabs[["fleet"]][["branch"]] == "LDV_psgr" &
-  tabs[["fleet"]][["year"]]   == 2024L, ]
-tech_p <- tabs[["technologies"]][
-  tabs[["technologies"]][["branch"]] == "LDV_psgr",
-  c("name", "capacity_units", "avg_km_yr",
-    "load_per_vehicle_hwy", "load_per_vehicle_cty")]
-
-sanity <- merge(fleet_t0[, c("tech","stock")], tech_p,
-                by.x = "tech", by.y = "name")
-sanity$cap2act_Mvehkm  <- sanity$avg_km_yr * sanity$capacity_units / 1e6
-hwy_share <- 0.20  # must match hwy_share_psgr in build_transport_inputs.R
-sanity$service_MPkm <- round(
-  sanity$stock * sanity$cap2act_Mvehkm *
-  (hwy_share          * sanity$load_per_vehicle_hwy +
-   (1 - hwy_share)    * sanity$load_per_vehicle_cty))
-
-cat("=== LDV Passenger: fleet-to-service sanity check (2024 stock → MPkm) ===\n")
-print(sanity[, c("tech","stock","cap2act_Mvehkm","service_MPkm")])
-cat("\n  Total implied service from 2024 fleet:",
-    sum(sanity$service_MPkm, na.rm = TRUE), "MPkm\n")
-
-dem_t <- tabs[["demand"]][tabs[["demand"]][["branch"]] == "LDV_psgr", ]
-yr_cols   <- grep("^y[0-9]{4}$", names(dem_t), value = TRUE)
-dem_y2025 <- if ("y2025" %in% yr_cols) sum(dem_t$y2025, na.rm = TRUE) else NA_real_
-cat("  Initial demand (2025):              ", round(dem_y2025), "MPkm\n")
-cat("  Ratio (fleet service / demand):", round(sum(sanity$service_MPkm, na.rm=TRUE) /
-                                               dem_y2025, 3), "\n")
-cat("  (Ratio ~1 means stock is sized to meet demand; <<1 means demand >> existing fleet)\n")
+```{r ldv_psgr_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_LDV_psgr, type = "components")
 ```
 
 ---
@@ -227,8 +218,8 @@ model_LDV_frgt <- newModel(
 scen_LDV_frgt_BAU <- interpolate(
   model_LDV_frgt,
   name = "LDV_frgt_BAU",
-  desc = "LDV freight BAU scenario",
-  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+  desc = "LDV freight BAU scenario"
+  # debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
 )
 scen_LDV_frgt_BAU <- write_sc(scen_LDV_frgt_BAU)
 scen_LDV_frgt_BAU <- solve_scenario(scen_LDV_frgt_BAU)
@@ -240,6 +231,36 @@ scen_LDV_frgt_BAU <- save_scenario(scen_LDV_frgt_BAU)
 ```{r ldv_frgt_results}
 getData(scen_LDV_frgt_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
+```
+
+```{r ldv_frgt_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all LDV-freight technologies ───────────────
+if (isTRUE(eval_levcost)) {
+  ldv_frgt_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_LDV_frgt@data
+  )
+  ldv_frgt_techs |> names()
+
+  lc_LDV_frgt <- ideea_levcost(
+    object   = ldv_frgt_techs,
+    group    = "o",
+    repo     = repo_LDV_frgt,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r ldv_frgt_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_LDV_frgt, type = "npv")
+```
+
+```{r ldv_frgt_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_LDV_frgt, type = "components")
 ```
 
 ---
@@ -272,8 +293,8 @@ model_HDV_psgr <- newModel(
 scen_HDV_psgr_BAU <- interpolate(
   model_HDV_psgr,
   name = "HDV_psgr_BAU",
-  desc = "HDV passenger BAU scenario",
-  debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
+  desc = "HDV passenger BAU scenario"
+  # debug = data.frame(dummyImport = 1e5, dummyExport = 1e5)
 )
 scen_HDV_psgr_BAU <- write_sc(scen_HDV_psgr_BAU)
 scen_HDV_psgr_BAU <- solve_scenario(scen_HDV_psgr_BAU)
@@ -285,6 +306,36 @@ scen_HDV_psgr_BAU <- save_scenario(scen_HDV_psgr_BAU)
 ```{r hdv_psgr_results}
 getData(scen_HDV_psgr_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
+```
+
+```{r hdv_psgr_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all HDV-passenger technologies ─────────────
+if (isTRUE(eval_levcost)) {
+  hdv_psgr_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_HDV_psgr@data
+  )
+  hdv_psgr_techs |> names()
+
+  lc_HDV_psgr <- ideea_levcost(
+    object   = hdv_psgr_techs,
+    group    = "o",
+    repo     = repo_HDV_psgr,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r hdv_psgr_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_HDV_psgr, type = "npv")
+```
+
+```{r hdv_psgr_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_HDV_psgr, type = "components")
 ```
 
 ---
@@ -332,6 +383,36 @@ getData(scen_HDV_frgt_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
 ```
 
+```{r hdv_frgt_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all HDV-freight technologies ───────────────
+if (isTRUE(eval_levcost)) {
+  hdv_frgt_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_HDV_frgt@data
+  )
+  hdv_frgt_techs |> names()
+
+  lc_HDV_frgt <- ideea_levcost(
+    object   = hdv_frgt_techs,
+    group    = "o",
+    repo     = repo_HDV_frgt,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r hdv_frgt_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_HDV_frgt, type = "npv")
+```
+
+```{r hdv_frgt_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_HDV_frgt, type = "components")
+```
+
 ---
 
 ## Aircraft Passenger model
@@ -375,6 +456,36 @@ scen_aircraft_psgr_BAU <- save_scenario(scen_aircraft_psgr_BAU)
 ```{r aircraft_psgr_results}
 getData(scen_aircraft_psgr_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
+```
+
+```{r aircraft_psgr_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all aircraft-passenger technologies ─────────
+if (isTRUE(eval_levcost)) {
+  aircraft_psgr_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_aircraft_psgr@data
+  )
+  aircraft_psgr_techs |> names()
+
+  lc_aircraft_psgr <- ideea_levcost(
+    object   = aircraft_psgr_techs,
+    group    = "o",
+    repo     = repo_aircraft_psgr,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r aircraft_psgr_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_aircraft_psgr, type = "npv")
+```
+
+```{r aircraft_psgr_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_aircraft_psgr, type = "components")
 ```
 
 ---
@@ -422,6 +533,36 @@ getData(scen_aircraft_frgt_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
 ```
 
+```{r aircraft_frgt_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all aircraft-freight technologies ───────────
+if (isTRUE(eval_levcost)) {
+  aircraft_frgt_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_aircraft_frgt@data
+  )
+  aircraft_frgt_techs |> names()
+
+  lc_aircraft_frgt <- ideea_levcost(
+    object   = aircraft_frgt_techs,
+    group    = "o",
+    repo     = repo_aircraft_frgt,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r aircraft_frgt_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_aircraft_frgt, type = "npv")
+```
+
+```{r aircraft_frgt_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_aircraft_frgt, type = "components")
+```
+
 ---
 
 ## Rail Passenger model
@@ -465,6 +606,36 @@ scen_rail_psgr_BAU <- save_scenario(scen_rail_psgr_BAU)
 ```{r rail_psgr_results}
 getData(scen_rail_psgr_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
+```
+
+```{r rail_psgr_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all rail-passenger technologies ─────────────
+if (isTRUE(eval_levcost)) {
+  rail_psgr_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_rail_psgr@data
+  )
+  rail_psgr_techs |> names()
+
+  lc_rail_psgr <- ideea_levcost(
+    object   = rail_psgr_techs,
+    group    = "o",
+    repo     = repo_rail_psgr,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r rail_psgr_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_rail_psgr, type = "npv")
+```
+
+```{r rail_psgr_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_rail_psgr, type = "components")
 ```
 
 ---
@@ -512,6 +683,36 @@ getData(scen_rail_frgt_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
 ```
 
+```{r rail_frgt_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all rail-freight technologies ───────────────
+if (isTRUE(eval_levcost)) {
+  rail_frgt_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_rail_frgt@data
+  )
+  rail_frgt_techs |> names()
+
+  lc_rail_frgt <- ideea_levcost(
+    object   = rail_frgt_techs,
+    group    = "o",
+    repo     = repo_rail_frgt,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r rail_frgt_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_rail_frgt, type = "npv")
+```
+
+```{r rail_frgt_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_rail_frgt, type = "components")
+```
+
 ---
 
 ## Ships Passenger model
@@ -555,6 +756,36 @@ scen_ships_psgr_BAU <- save_scenario(scen_ships_psgr_BAU)
 ```{r ships_psgr_results}
 getData(scen_ships_psgr_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
+```
+
+```{r ships_psgr_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all ships-passenger technologies ────────────
+if (isTRUE(eval_levcost)) {
+  ships_psgr_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_ships_psgr@data
+  )
+  ships_psgr_techs |> names()
+
+  lc_ships_psgr <- ideea_levcost(
+    object   = ships_psgr_techs,
+    group    = "o",
+    repo     = repo_ships_psgr,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r ships_psgr_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_ships_psgr, type = "npv")
+```
+
+```{r ships_psgr_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_ships_psgr, type = "components")
 ```
 
 ---
@@ -602,6 +833,36 @@ getData(scen_ships_frgt_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
 ```
 
+```{r ships_frgt_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all ships-freight technologies ──────────────
+if (isTRUE(eval_levcost)) {
+  ships_frgt_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_ships_frgt@data
+  )
+  ships_frgt_techs |> names()
+
+  lc_ships_frgt <- ideea_levcost(
+    object   = ships_frgt_techs,
+    group    = "o",
+    repo     = repo_ships_frgt,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r ships_frgt_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_ships_frgt, type = "npv")
+```
+
+```{r ships_frgt_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_ships_frgt, type = "components")
+```
+
 ---
 
 ## Motorbikes Passenger model
@@ -645,6 +906,36 @@ scen_motorbikes_psgr_BAU <- save_scenario(scen_motorbikes_psgr_BAU)
 ```{r motorbikes_psgr_results}
 getData(scen_motorbikes_psgr_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
+```
+
+```{r motorbikes_psgr_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all motorbikes-passenger technologies ───────
+if (isTRUE(eval_levcost)) {
+  motorbikes_psgr_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_motorbikes_psgr@data
+  )
+  motorbikes_psgr_techs |> names()
+
+  lc_motorbikes_psgr <- ideea_levcost(
+    object   = motorbikes_psgr_techs,
+    group    = "o",
+    repo     = repo_motorbikes_psgr,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r motorbikes_psgr_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_motorbikes_psgr, type = "npv")
+```
+
+```{r motorbikes_psgr_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_motorbikes_psgr, type = "components")
 ```
 
 ---
@@ -692,6 +983,36 @@ getData(scen_motorbikes_frgt_BAU, name = "vTechCap", merge = TRUE) |>
   pivot_wider(names_from = "tech")
 ```
 
+```{r motorbikes_frgt_levcost, message=FALSE, warning=FALSE, eval=eval_levcost}
+# ── Levelized cost comparison for all motorbikes-freight technologies ─────────
+if (isTRUE(eval_levcost)) {
+  motorbikes_frgt_techs <- Filter(
+    function(x) inherits(x, "technology") && !grepl("INFR_", x@name),
+    repo_motorbikes_frgt@data
+  )
+  motorbikes_frgt_techs |> names()
+
+  lc_motorbikes_frgt <- ideea_levcost(
+    object   = motorbikes_frgt_techs,
+    group    = "o",
+    repo     = repo_motorbikes_frgt,
+    discount = 0.05,
+    horizon  = ideea_modules$horizons$horizon_2020_2060_by_5,
+    calendar = newCalendar(),
+    region   = "IND",
+    verbose  = FALSE
+  )
+}
+```
+
+```{r motorbikes_frgt_levcost_npv, fig.cap="Levelized cost comparison (NPV-weighted)", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_motorbikes_frgt, type = "npv")
+```
+
+```{r motorbikes_frgt_levcost_components, fig.cap="Levelized cost components by technology", eval=eval_levcost}
+if (isTRUE(eval_levcost)) autoplot(lc_motorbikes_frgt, type = "components")
+```
+
 ---
 
 ## Combined transport model
@@ -728,6 +1049,26 @@ model_transport <- newModel(
   horizon  = ideea_modules$horizons$horizon_2020_2060_by_5
 )
 ```
+
+
+## Calibration run
+```{r}
+scen_transport_BAU_BY <- interpolate(
+  model_transport,
+  name = "transport_BAU_BY",
+  desc = "Combined transport BAU scenario, base year calibration",
+  horizon = newHorizon(2020)
+)
+scen_transport_BAU_BY <- write_sc(scen_transport_BAU_BY)
+scen_transport_BAU_BY <- solve_scenario(scen_transport_BAU_BY)
+scen_transport_BAU_BY <- read_solution(scen_transport_BAU_BY)
+summary(scen_transport_BAU_BY)
+scen_transport_BAU_BY <- save_scenario(scen_transport_BAU_BY)
+
+
+```
+
+
 
 ```{r combined_solve}
 scen_transport_BAU <- interpolate(
@@ -770,7 +1111,7 @@ scen_transport_CAP <- save_scenario(scen_transport_CAP)
 
 ```
 
-
+## Explorer
 ```{r, eval=FALSE}
 # Interactive explorer of scenarios
 shiny::runApp("R/transport_explorer")

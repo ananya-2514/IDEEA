@@ -460,11 +460,11 @@ ideea_vehicle <- function(
 
   # ── Build input data.frame ────────────────────────────────────────────────
   input_df <- data.frame(
-    comm  = fuels,
-    unit  = fuel_unit,
-    group = "i",
+    comm             = fuels,
+    unit             = fuel_unit,
     stringsAsFactors = FALSE
   )
+  if (length(fuels) > 1) input_df$group <- "i"
 
   # ── Build output data.frame ───────────────────────────────────────────────
   active_services <- c(service_hwy, service_cty)  # NULLs silently dropped by c()
@@ -481,13 +481,34 @@ ideea_vehicle <- function(
   if (!is.null(blend_fuel)) {
     fuel_share_up[fuels == blend_fuel] <- blend_share_up
   }
-  ceff_inputs <- data.frame(
-    comm      = fuels,
-    use2cact  = NA_real_,
-    share.up  = fuel_share_up,
-    cact2cout = NA_real_,
-    stringsAsFactors = FALSE
-  )
+  grouped_inputs <- length(fuels) > 1
+  if (grouped_inputs) {
+    # Grouped inputs: cinp2ginp links each fuel to the input group;
+    # ginp2use = 1 is declared in geff to pass group input through to use.
+    ceff_inputs <- data.frame(
+      comm             = fuels,
+      cinp2ginp        = 1,
+      use2cact         = NA_real_,
+      share.up         = fuel_share_up,
+      cact2cout        = NA_real_,
+      stringsAsFactors = FALSE
+    )
+    geff_df <- data.frame(
+      group            = "i",
+      ginp2use         = 1,
+      stringsAsFactors = FALSE
+    )
+  } else {
+    ceff_inputs <- data.frame(
+      comm             = fuels,
+      cinp2use         = 1,
+      use2cact         = NA_real_,
+      share.up         = fuel_share_up,
+      cact2cout        = NA_real_,
+      stringsAsFactors = FALSE
+    )
+    geff_df <- NULL
+  }
 
   # --- service output rows ---
   # use2cact is per-service (replicated for both modes from the same formula)
@@ -517,8 +538,8 @@ ideea_vehicle <- function(
       stringsAsFactors = FALSE
     )
   }
-
-  ceff_df <- rbind(ceff_inputs, ceff_outputs)
+  # browser()
+  ceff_df <- dplyr::bind_rows(ceff_inputs, ceff_outputs)
 
   # ── Economics ─────────────────────────────────────────────────────────────
   invcost_list <- if (!is.null(vehicle_cost_usd)) {
@@ -540,18 +561,19 @@ ideea_vehicle <- function(
 
   # ── Assemble newTechnology() call ─────────────────────────────────────────
   tech_args <- list(
-    name     = name,
-    desc     = desc,
-    input    = input_df,
-    output   = output_df,
-    units    = units_list,
-    cap2act  = cap2act,
-    ceff     = ceff_df,
-    olife    = list(olife = olife),
-    capacity = list(region = region, year = start_year),
+    name    = name,
+    desc    = desc,
+    input   = input_df,
+    output  = output_df,
+    units   = units_list,
+    cap2act = cap2act,
+    ceff    = ceff_df,
+    olife   = list(olife = olife),
+    start   = data.frame(start = start_year),
     ...
   )
 
+  if (!is.null(geff_df))        tech_args$geff   <- geff_df
   if (length(invcost_list) > 0) tech_args$invcost <- invcost_list
   if (length(fixom_list)   > 0) tech_args$fixom   <- fixom_list
 

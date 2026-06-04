@@ -534,7 +534,10 @@ ideea_levcost <- function(
   }
 
   # ── 8. Auto-create commodity objects (if not in repo) ───────────────────────
-  all_comms_needed <- unique(c(in_comms, all_out_comms))
+  # Include @aux$acomm so auxiliary commodities (e.g. PETRO_REFUEL, CNG_LEAK)
+  # referenced in @aeff are declared in the mini-model commodity set.
+  aux_comms        <- unique(object@aux$acomm)
+  all_comms_needed <- unique(c(in_comms, all_out_comms, aux_comms))
   commodity_objects <- list()
 
   for (cm in all_comms_needed) {
@@ -551,14 +554,33 @@ ideea_levcost <- function(
       unit_val <- ""
       in_row   <- object@input [object@input$comm  == cm, , drop = FALSE]
       out_row  <- object@output[object@output$comm == cm, , drop = FALSE]
+      aux_row  <- object@aux   [object@aux$acomm   == cm, , drop = FALSE]
       if (nrow(in_row)  > 0 && "unit" %in% names(in_row))  unit_val <- in_row$unit[1]
       if (nrow(out_row) > 0 && "unit" %in% names(out_row)) unit_val <- out_row$unit[1]
+      if (nrow(aux_row) > 0 && "unit" %in% names(aux_row) && !nzchar(unit_val))
+        unit_val <- aux_row$unit[1]
       commodity_objects[[cm]] <- energyRt::newCommodity(
         name      = cm,
         timeframe = "ANNUAL",
         unit      = if (!is.na(unit_val)) unit_val else ""
       )
       if (verbose) message("Created commodity '", cm, "'.")
+    }
+  }
+
+  # Determine which aux commodities are consumed as inputs (cinp2ainp or
+  # act2ainp-family rows non-NA in @aeff) — these need zero-cost supply objects.
+  inp_aux_cols <- c("cinp2ainp", "cout2ainp", "act2ainp", "cap2ainp", "ncap2ainp",
+                    "sinp2ainp", "sout2ainp", "stg2ainp")
+  aux_inp_comms <- character(0)
+  if (nrow(object@aeff) > 0 && length(aux_comms) > 0) {
+    aeff_inp_cols <- intersect(inp_aux_cols, names(object@aeff))
+    if (length(aeff_inp_cols) > 0) {
+      for (ac in aux_comms) {
+        rows <- object@aeff[!is.na(object@aeff$acomm) & object@aeff$acomm == ac,
+                            aeff_inp_cols, drop = FALSE]
+        if (any(!is.na(rows))) aux_inp_comms <- c(aux_inp_comms, ac)
+      }
     }
   }
 
@@ -573,12 +595,18 @@ ideea_levcost <- function(
       # region column in @availability must be updated.
       sup <- repo_supplies[[cm]]
       if (isS4(sup)) {
+        upd_args <- list()
         if (.hasSlot(sup, "region") && length(sup@region) > 0)
-          sup@region <- region
+          upd_args$region <- region
         if (.hasSlot(sup, "availability") &&
             nrow(sup@availability) > 0 &&
-            "region" %in% names(sup@availability))
-          sup@availability$region <- region
+            "region" %in% names(sup@availability)) {
+          new_ava <- sup@availability
+          new_ava$region <- region
+          upd_args$availability <- new_ava
+        }
+        if (length(upd_args) > 0)
+          sup <- do.call(update, c(list(sup), upd_args))
       }
       supply_objects[[cm]] <- sup
     } else {
@@ -598,6 +626,37 @@ ideea_levcost <- function(
         )
       )
       if (verbose) message("Created supply for '", cm, "' (cost = ", fc_val, ").")
+    }
+  }
+
+  # Zero-cost supplies for input-type aux commodities (e.g. PETRO_REFUEL
+  # consumed via cinp2ainp).  Reuse repo supply if one exists, otherwise create
+  # unconstrained zero-cost supply so the mini-model balances.
+  for (cm in aux_inp_comms) {
+    if (!is.null(repo_supplies[[cm]])) {
+      sup <- repo_supplies[[cm]]
+      if (isS4(sup)) {
+        upd_args <- list()
+        if (.hasSlot(sup, "region") && length(sup@region) > 0)
+          upd_args$region <- region
+        if (.hasSlot(sup, "availability") &&
+            nrow(sup@availability) > 0 &&
+            "region" %in% names(sup@availability)) {
+          new_ava <- sup@availability; new_ava$region <- region
+          upd_args$availability <- new_ava
+        }
+        if (length(upd_args) > 0) sup <- do.call(update, c(list(sup), upd_args))
+      }
+      supply_objects[[cm]] <- sup
+    } else {
+      supply_objects[[cm]] <- energyRt::newSupply(
+        name         = paste0("SUP_", cm),
+        commodity    = cm,
+        region       = region,
+        availability = data.frame(region = region, year = as.integer(base_year),
+                                  cost = 0, stringsAsFactors = FALSE)
+      )
+      if (verbose) message("Created zero-cost aux supply for '", cm, "'.")
     }
   }
 
@@ -1023,20 +1082,21 @@ ideea_levcost <- function(
           if (length(vary_comms) < 2) next
 
           for (prim_inp in vary_comms) {
-            object@ceff <- original_ceff
+            mod_ceff <- original_ceff
             inp_su <- in_share_up[[grp]][[prim_inp]]
             fx_val <- if (is.finite(inp_su)) inp_su else 1.0
             other_comms <- setdiff(grp_comms, prim_inp)
             other_fx <- if (length(other_comms) > 0)
               (1 - fx_val) / length(other_comms) else 0
-            if (!"share.fx" %in% names(object@ceff))
-              object@ceff$share.fx <- NA_real_
+            if (!"share.fx" %in% names(mod_ceff))
+              mod_ceff$share.fx <- NA_real_
             for (cm in grp_comms) {
-              rows <- which(object@ceff$comm == cm)
+              rows <- which(mod_ceff$comm == cm)
               if (length(rows) > 0)
-                object@ceff$share.fx[rows] <-
+                mod_ceff$share.fx[rows] <-
                   if (cm == prim_inp) fx_val else other_fx
             }
+            object <- update(object, ceff = mod_ceff)
             suffix  <- paste0("_fr_", prim_out, "_", prim_inp)
             scen_ifr <- build_and_solve_(dobj_ifr, suffix = suffix)
             if (!isTRUE(scen_ifr@status$optimal))
@@ -1054,7 +1114,7 @@ ideea_levcost <- function(
           }
         }
       }
-      object@ceff <- original_ceff
+      object <- update(object, ceff = original_ceff)
     }
   }
 
